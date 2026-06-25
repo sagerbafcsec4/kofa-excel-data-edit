@@ -18,47 +18,32 @@
   body{ background:var(--bg); color:var(--ink); font-family:var(--font); line-height:1.6; }
   .topbar{ height:4px; background:var(--grad); }
   .wrap{ max-width:860px; margin:0 auto; padding:22px 18px 40px; }
-  /* header */
   header{ display:flex; align-items:center; gap:14px; margin:8px 2px 20px; }
-  .logo{ width:46px; height:46px; flex:0 0 auto; border-radius:12px; overflow:hidden;
-         box-shadow:0 4px 14px -4px var(--ring); }
+  .logo{ width:46px; height:46px; flex:0 0 auto; border-radius:12px; overflow:hidden; box-shadow:0 4px 14px -4px var(--ring); }
   .logo svg{ width:100%; height:100%; display:block; }
   header h1{ margin:0; font-size:22px; font-weight:800; letter-spacing:.01em; }
   header p{ margin:3px 0 0; color:var(--muted); font-size:.9rem; }
-  .ver{ display:inline-block; margin-top:4px; font-size:.72rem; color:var(--muted);
-        background:var(--soft); border:1px solid var(--line); border-radius:999px; padding:1px 8px; }
-  /* cards */
-  .card{ background:var(--card); border:1px solid var(--line); border-radius:16px;
-         padding:20px; margin-bottom:16px; box-shadow:rgba(15,23,42,.08) 0 2px 12px -6px; }
+  .ver{ display:inline-block; margin-top:4px; font-size:.72rem; color:var(--muted); background:var(--soft); border:1px solid var(--line); border-radius:999px; padding:1px 8px; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:16px; box-shadow:rgba(15,23,42,.08) 0 2px 12px -6px; }
   h2{ font-size:1.0rem; margin:0 0 14px; display:flex; align-items:center; gap:10px; }
-  .num{ width:26px; height:26px; flex:0 0 auto; border-radius:50%; background:var(--grad);
-        color:#fff; font-size:.82rem; font-weight:700; display:inline-flex; align-items:center; justify-content:center;
-        box-shadow:0 2px 8px -2px var(--ring); }
-  /* drop zone */
-  #drop{ border:2px dashed var(--dash); border-radius:14px; padding:30px 16px; text-align:center;
-         color:var(--muted); cursor:pointer; transition:.15s; background:#fff; }
+  .num{ width:26px; height:26px; flex:0 0 auto; border-radius:50%; background:var(--grad); color:#fff; font-size:.82rem; font-weight:700; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 8px -2px var(--ring); }
+  #drop{ border:2px dashed var(--dash); border-radius:14px; padding:30px 16px; text-align:center; color:var(--muted); cursor:pointer; transition:.15s; background:#fff; }
   #drop:hover,#drop.hover{ border-color:var(--p2); background:var(--soft); color:var(--p1); }
   #drop strong{ color:var(--ink); }
   ul#files{ list-style:none; padding:0; margin:14px 0 0; }
-  ul#files li{ padding:8px 12px; background:var(--soft); border:1px solid var(--line); border-radius:9px;
-               margin-bottom:6px; font-size:.9rem; display:flex; justify-content:space-between; gap:10px; }
+  ul#files li{ padding:8px 12px; background:var(--soft); border:1px solid var(--line); border-radius:9px; margin-bottom:6px; font-size:.9rem; display:flex; justify-content:space-between; gap:10px; }
   label.chk{ display:flex; align-items:center; gap:9px; font-size:.95rem; cursor:pointer; }
   label.chk input{ width:17px; height:17px; accent-color:var(--p1); }
-  /* buttons */
   button{ font:inherit; border:0; border-radius:9px; padding:11px 22px; cursor:pointer; }
   button.primary{ background:var(--grad); color:#fff; font-weight:700; box-shadow:0 6px 16px -6px var(--ring); }
   button.primary:disabled{ background:#c7c2d6; box-shadow:none; cursor:not-allowed; }
   #status{ font-size:.88rem; color:var(--muted); margin-top:10px; }
-  /* results */
   .dl{ display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 10px; }
-  .dl a{ text-decoration:none; background:var(--soft); color:var(--p1); border:1px solid var(--dash);
-         padding:9px 13px; border-radius:9px; font-size:.88rem; font-weight:600; }
+  .dl a{ text-decoration:none; background:var(--soft); color:var(--p1); border:1px solid var(--dash); padding:9px 13px; border-radius:9px; font-size:.88rem; font-weight:600; }
   .dl a:hover{ background:#e9e2fa; }
   .note{ font-size:.82rem; color:var(--muted); margin:0 0 12px; }
-  #log{ background:#1c1530; color:#e7defb; font-family:Consolas,monospace; font-size:.8rem;
-        border-radius:10px; padding:12px; height:220px; overflow:auto; white-space:pre-wrap; }
-  .spin{ display:inline-block; width:14px; height:14px; border:2px solid #d8d2e8;
-         border-top-color:var(--p1); border-radius:50%; animation:s .8s linear infinite; vertical-align:-2px; }
+  #log{ background:#1c1530; color:#e7defb; font-family:Consolas,monospace; font-size:.8rem; border-radius:10px; padding:12px; height:220px; overflow:auto; white-space:pre-wrap; }
+  .spin{ display:inline-block; width:14px; height:14px; border:2px solid #d8d2e8; border-top-color:var(--p1); border-radius:50%; animation:s .8s linear infinite; vertical-align:-2px; }
   @keyframes s{ to{ transform:rotate(360deg); } }
   .safe{ font-size:.82rem; color:var(--muted); margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); }
 </style>
@@ -93,10 +78,8 @@
 
   <div class="card">
     <h2><span class="num">1</span>Excelファイルを読み込む（.xlsx・複数可）</h2>
-    <div id="drop">
-      ここに <strong>.xlsx</strong> をドラッグ＆ドロップ、またはクリックして選択
-      <input id="file" type="file" accept=".xlsx" multiple hidden>
-    </div>
+    <div id="drop">ここに <strong>.xlsx</strong> をドラッグ＆ドロップ、またはクリックして選択
+      <input id="file" type="file" accept=".xlsx" multiple hidden></div>
     <ul id="files"></ul>
   </div>
 
@@ -114,7 +97,7 @@
   <div class="card">
     <h2><span class="num">4</span>結果（ダウンロード）</h2>
     <div id="dl" class="dl"></div>
-    <p class="note">複数ファイルは「ZIPでまとめてダウンロード」が便利です。</p>
+    <p class="note">加工後ファイルは末尾に <b>_processed</b> が付きます。複数ファイルは「ZIPでまとめてダウンロード」が便利です。</p>
     <div id="log"></div>
     <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲だけ。<b>セルの値・数字は一切書き換えません。</b>出力前に元ファイルと全セル値を自動照合し、万一でも値の変更を検知したら出力を中止します。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
   </div>
@@ -430,6 +413,10 @@ def resolve_keireki():
         ans = ""
     return ans in ("y", "yes")
 
+def processed_name(name):
+    base, ext = os.path.splitext(name)
+    return base + "_processed" + (ext or ".xlsx")
+
 def run(inputs, delete_keireki, progress=None):
     """GUI/CLI 共通エンジン。inputs=フォルダ or ファイルのリスト。
     出力は入力フォルダ直下の _processed / _logs。progress(str) で進捗通知。"""
@@ -465,8 +452,9 @@ def run(inputs, delete_keireki, progress=None):
         emit(f"\n===== {name} =====")
         try:
             wb = process(f, log)
-            wb.save(os.path.join(out_dir, name))
-            log(f"保存 -> _processed/{name}")
+            out_name = processed_name(name)
+            wb.save(os.path.join(out_dir, out_name))
+            log(f"保存 -> _processed/{out_name}")
             results.append((name, "OK"))
         except Exception as e:
             log(f"!! エラー: {e}")
@@ -493,7 +481,7 @@ def process_one(name, data, delete_keireki):
     DELETE_KEIREKI = bool(delete_keireki)
     logs = []
     wb = openpyxl.load_workbook(io.BytesIO(bytes(data)))
-    process_checked(wb, lambda s: logs.append(s))   # 値の改変を検知したら例外→出力しない
+    process_checked(wb, lambda s: logs.append(s))
     bio = io.BytesIO(); wb.save(bio)
     _OUTPUTS[name] = bio.getvalue()
     return "\n".join(logs)
@@ -527,18 +515,13 @@ await micropip.install(["openpyxl","et_xmlfile"])
     await pyodide.runPythonAsync($("engine").textContent);
     ready=true; updateRun();
     statusEl.textContent = "✅ 準備完了。ファイルを選んで「実行」を押してください。";
-  }catch(e){
-    statusEl.textContent = "⚠ エンジンの初期化に失敗: " + e;
-  }
+  }catch(e){ statusEl.textContent = "⚠ エンジンの初期化に失敗: " + e; }
 }
 function updateRun(){ runBtn.disabled = !(ready && selected.length>0); }
 function showFiles(){
   const ul=$("files"); ul.innerHTML="";
-  selected.forEach(f=>{
-    const li=document.createElement("li");
-    li.innerHTML = "<span>"+f.name+"</span><span>"+Math.round(f.size/1024)+" KB</span>";
-    ul.appendChild(li);
-  });
+  selected.forEach(f=>{ const li=document.createElement("li");
+    li.innerHTML = "<span>"+f.name+"</span><span>"+Math.round(f.size/1024)+" KB</span>"; ul.appendChild(li); });
 }
 const drop=$("drop"), fileInput=$("file");
 drop.onclick=()=>fileInput.click();
@@ -548,10 +531,12 @@ fileInput.onchange=e=>{ selected=[...e.target.files].filter(f=>f.name.toLowerCas
 drop.addEventListener("drop",e=>{ selected=[...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith(".xlsx")); showFiles(); updateRun(); });
 
 function toU8(ret){ return (ret && ret.toJs) ? ret.toJs() : ret; }
+function procName(n){ return n.replace(/\.xlsx$/i, "") + "_processed.xlsx"; }
+function zipName(){ const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return `Excelデータ加工_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.zip`; }
 function download(name, u8){
   const blob=new Blob([u8],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.textContent="⬇ "+name;
-  return a;
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.textContent="⬇ "+name; return a;
 }
 runBtn.onclick=async()=>{
   if(!ready) return;
@@ -565,9 +550,9 @@ runBtn.onclick=async()=>{
     log("\n===== "+f.name+" =====");
     try{
       const buf=new Uint8Array(await f.arrayBuffer());
-      const logStr=procOne(f.name, buf, delK);
-      log(logStr);
-      $("dl").appendChild(download(f.name, toU8(getOut(f.name))));
+      const outName=procName(f.name);
+      log(procOne(outName, buf, delK));
+      $("dl").appendChild(download(outName, toU8(getOut(outName))));
       okCount++;
     }catch(e){ log("!! エラー: "+e); }
   }
@@ -576,7 +561,7 @@ runBtn.onclick=async()=>{
       const zip=toU8(pyodide.globals.get("make_zip")());
       const a=document.createElement("a");
       a.href=URL.createObjectURL(new Blob([zip],{type:"application/zip"}));
-      a.download="Excelデータ加工_processed.zip"; a.textContent="⬇ ZIPでまとめてダウンロード"; a.style.fontWeight="700";
+      a.download=zipName(); a.textContent="⬇ ZIPでまとめてダウンロード"; a.style.fontWeight="700";
       $("dl").appendChild(a);
     }catch(e){ log("ZIP作成エラー: "+e); }
   }
