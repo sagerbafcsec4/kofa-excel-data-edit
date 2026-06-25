@@ -10,7 +10,7 @@
   :root{
     --bg:#f5f4fb; --ink:#0f172a; --muted:#64748b; --line:#e4e9ee; --card:#fff;
     --p1:#6d28d9; --p2:#8b5cf6; --grad:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 100%);
-    --ring:rgba(109,40,217,.16); --dash:#cdbef2; --soft:#f1ecfb; --ok:#16a34a;
+    --ring:rgba(109,40,217,.16); --dash:#cdbef2; --soft:#f1ecfb; --ok:#16a34a; --warn:#c2410c;
     --font:Inter,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,system-ui,sans-serif;
   }
   *{ box-sizing:border-box; }
@@ -39,13 +39,21 @@
   button.primary{ background:var(--grad); color:#fff; font-weight:700; box-shadow:0 6px 16px -6px var(--ring); }
   button.primary:disabled{ background:#c7c2d6; box-shadow:none; cursor:not-allowed; }
   #status{ font-size:.88rem; color:var(--muted); margin-top:10px; }
-  .dl{ display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 10px; }
+  .empty{ color:var(--muted); font-size:.9rem; }
+  .summary{ font-size:.98rem; font-weight:700; margin:2px 0 10px; }
+  .summary.ok{ color:var(--ok); } .summary.warn{ color:var(--warn); }
+  .dl{ display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 6px; }
   .dl a{ text-decoration:none; background:var(--soft); color:var(--p1); border:1px solid var(--dash); padding:9px 13px; border-radius:9px; font-size:.88rem; font-weight:600; }
   .dl a:hover{ background:#e9e2fa; }
-  #log{ background:#1c1530; color:#e7defb; font-family:Consolas,monospace; font-size:.8rem; border-radius:10px; padding:12px; height:220px; overflow:auto; white-space:pre-wrap; }
+  details.detail{ margin-top:6px; }
+  details.detail summary{ cursor:pointer; color:var(--muted); font-size:.84rem; list-style:none; }
+  details.detail summary::-webkit-details-marker{ display:none; }
+  details.detail summary::before{ content:"▸ "; }
+  details.detail[open] summary::before{ content:"▾ "; }
+  #log{ background:#faf9fe; color:#3a3550; border:1px solid var(--line); font-family:Consolas,monospace; font-size:.78rem; border-radius:8px; padding:10px; max-height:240px; overflow:auto; white-space:pre-wrap; margin-top:8px; }
   .spin{ display:inline-block; width:14px; height:14px; border:2px solid #d8d2e8; border-top-color:var(--p1); border-radius:50%; animation:s .8s linear infinite; vertical-align:-2px; }
   @keyframes s{ to{ transform:rotate(360deg); } }
-  .safe{ font-size:.82rem; color:var(--muted); margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); }
+  .safe{ font-size:.82rem; color:var(--muted); margin-top:12px; padding-top:10px; border-top:1px dashed var(--line); }
 </style>
 </head>
 <body>
@@ -92,8 +100,10 @@
 
   <div class="card">
     <h2><span class="num">4</span>結果（ダウンロード）</h2>
+    <div id="summary" class="summary"></div>
     <div id="dl" class="dl"></div>
-    <div id="log"></div>
+    <div id="empty" class="empty">実行すると、ここに整形済みファイルのダウンロードが表示されます。</div>
+    <details class="detail" id="detail"><summary>処理の詳細を表示</summary><div id="log"></div></details>
     <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲だけ。<b>セルの値・数字は一切書き換えません。</b>出力前に元ファイルと全セル値を自動照合し、万一でも値の変更を検知したら出力を中止します。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
   </div>
 </div>
@@ -495,7 +505,7 @@ def make_zip():
 <script>
 let pyodide=null, ready=false, selected=[];
 const $=id=>document.getElementById(id);
-const logEl=$("log"), statusEl=$("status"), runBtn=$("run");
+const logEl=$("log"), statusEl=$("status"), runBtn=$("run"), summaryEl=$("summary"), emptyEl=$("empty"), detailEl=$("detail");
 function log(s){ logEl.textContent += s + "\n"; logEl.scrollTop=logEl.scrollHeight; }
 
 async function init(){
@@ -550,7 +560,8 @@ function download(name, u8){
 }
 runBtn.onclick=async()=>{
   if(!ready) return;
-  runBtn.disabled=true; runBtn.textContent="処理中…"; logEl.textContent=""; $("dl").innerHTML="";
+  runBtn.disabled=true; runBtn.textContent="処理中…";
+  logEl.textContent=""; $("dl").innerHTML=""; summaryEl.textContent=""; summaryEl.className="summary"; emptyEl.style.display="none";
   const delK=$("delK").checked;
   pyodide.globals.get("reset_outputs")();
   const procOne=pyodide.globals.get("process_one");
@@ -564,7 +575,7 @@ runBtn.onclick=async()=>{
       log(procOne(outName, buf, delK));
       $("dl").appendChild(download(outName, toU8(getOut(outName))));
       okCount++;
-    }catch(e){ log("!! エラー: "+e); }
+    }catch(e){ log("!! エラー: "+f.name+" / "+e); }
   }
   if(okCount>1){
     try{
@@ -575,7 +586,15 @@ runBtn.onclick=async()=>{
       $("dl").appendChild(a);
     }catch(e){ log("ZIP作成エラー: "+e); }
   }
-  log("\n完了: "+okCount+"/"+selected.length+" ファイル");
+  const total=selected.length;
+  if(okCount===total){
+    summaryEl.textContent = `✔ ${okCount}件すべて整形が完了しました（セルの値は変更していません）`;
+    summaryEl.className="summary ok";
+  }else{
+    summaryEl.textContent = `⚠ ${okCount}/${total}件 完了。残りはエラーです（「処理の詳細を表示」で確認してください）`;
+    summaryEl.className="summary warn"; detailEl.open=true;
+  }
+  log("\n完了: "+okCount+"/"+total+" ファイル");
   runBtn.disabled=false; runBtn.textContent="▶ 実行"; updateRun();
 };
 init();
