@@ -40,6 +40,8 @@
   button.primary:disabled{ background:#c7c2d6; box-shadow:none; cursor:not-allowed; }
   #status{ font-size:.88rem; color:var(--muted); margin-top:10px; }
   .empty{ color:var(--muted); font-size:.9rem; }
+  .setq{ font-weight:700; font-size:.92rem; margin:0 0 8px; }
+  .hint{ font-size:.8rem; color:var(--muted); margin:4px 0 0 26px; }
   .summary{ font-size:.98rem; font-weight:700; margin:2px 0 10px; }
   .summary.ok{ color:var(--ok); } .summary.warn{ color:var(--warn); }
   .dl{ display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 6px; }
@@ -89,9 +91,12 @@
 
   <div class="card">
     <h2><span class="num">2</span>設定</h2>
-    <label class="chk"><input id="delK" type="checkbox" checked> 「経歴」シートを削除する</label>
-    <label class="chk" style="margin-top:12px;">試合日（年齢の基準日）<input id="matchDate" type="date" style="margin-left:8px; accent-color:var(--p1);"></label>
-    <div style="font-size:.8rem; color:var(--muted); margin-top:4px;">表記シートの「歳」列に、この日付時点の年齢が入ります。未指定なら今日の年齢になります。</div>
+    <div class="setq">試合日を指定しますか？</div>
+    <label class="chk"><input id="useDate" type="checkbox"> 指定する（表記シートの「歳」列に、その日の年齢を入れる）</label>
+    <label class="chk" style="margin-top:6px; margin-left:26px;">試合日：<input id="matchDate" type="date" disabled style="margin-left:8px; accent-color:var(--p1);"></label>
+    <div class="hint">指定しない場合は「歳」列を変更しません（元の値のまま・厳格に照合）。</div>
+    <div class="setq" style="margin-top:18px;">経歴シートを削除しますか？</div>
+    <label class="chk"><input id="delK" type="checkbox" checked> 削除する</label>
   </div>
 
   <div class="card">
@@ -105,7 +110,7 @@
     <div id="summary" class="summary"></div>
     <div id="dl" class="dl"></div>
     <details class="detail" id="detail"><summary>処理の詳細を表示</summary><div id="log"></div></details>
-    <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整と、<b>表記シートの「歳」列に年齢計算式を入れること</b>だけ。それ以外の<b>セルの値・数字は一切書き換えません</b>（歳列を除く全セルを出力前に自動照合し、変更を検知したら出力を中止）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
+    <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記シートの「歳」列に年齢計算式を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
   </div>
 </div>
 
@@ -143,7 +148,7 @@ except NameError:        # ブラウザ(Pyodide)等で __file__ が無い場合
 OUT  = os.path.join(BASE, "_processed")
 LOGS = os.path.join(BASE, "_logs")
 DELETE_KEIREKI = None   # main() で確定(True=削除 / False=保持)
-MATCH_DATE = None       # 試合日 "YYYY/MM/DD"。None なら現在(TODAY())基準の年齢
+MATCH_DATE = None       # 試合日 "YYYY/MM/DD"。None(未指定)なら歳列は変更しない
 
 def is_empty(v):
     return v is None or (isinstance(v, str) and v.strip() == "")
@@ -318,15 +323,17 @@ def fmt_hyoki(ws, log):
         h = h.strip() if isinstance(h, str) else h
         if h == "歳": age_col = c
         elif h == "生年月日": bd_col = c
-    if age_col and bd_col:
+    if MATCH_DATE and age_col and bd_col:
         bdL = get_column_letter(bd_col)
-        date_expr = f'"{MATCH_DATE.replace("-","/")}"' if MATCH_DATE else "TODAY()"
+        date_str = MATCH_DATE.replace("-", "/")
         cnt_age = 0
         for r in range(3, last + 1):
             if not is_empty(g(grid, r, bd_col)):   # 生年月日がある行(選手〜監督)だけ
-                ws.cell(r, age_col).value = f'=DATEDIF({bdL}{r}, {date_expr}, "Y")'
+                ws.cell(r, age_col).value = f'=DATEDIF({bdL}{r}, "{date_str}", "Y")'
                 cnt_age += 1
-        log(f"  歳列({get_column_letter(age_col)}) に {MATCH_DATE or '現在(TODAY)'} 基準の年齢式を {cnt_age}件 設定")
+        log(f"  歳列({get_column_letter(age_col)}) に {date_str} 基準の年齢式を {cnt_age}件 設定")
+    elif age_col:
+        log("  歳列: 試合日未指定のため変更なし(元の値のまま・厳格照合)")
     # 特定ヘッダーは自動調整に加えて最低幅を確保(ギリギリ防止)
     HYOKI_MIN = {"生年月日": 12}
     for c in range(3, maxc + 1):       # C列以降のみ自動調整
@@ -409,8 +416,9 @@ def process_wb(wb, log):
 
 def _exempt_cols(ws):
     """安全チェックで照合から除外する列(意図的に書き換える列)。
-    表記シートの『歳』列(年齢計算式を入れる)のみ対象。"""
-    if is_hyoki_sheet(ws):
+    試合日が指定されたときのみ、表記シートの『歳』列を除外する。
+    未指定なら除外なし=歳列も含め全セルを厳格に照合する。"""
+    if MATCH_DATE and is_hyoki_sheet(ws):
         for c in range(1, (ws.max_column or 0) + 1):
             v = ws.cell(2, c).value
             if isinstance(v, str) and v.strip() == "歳":
@@ -602,6 +610,7 @@ fileInput.onchange=e=>{ addFiles(e.target.files); fileInput.value=""; };
 ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("hover");}));
 ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hover");}));
 drop.addEventListener("drop",e=>{ addFiles(e.dataTransfer.files); });
+$("useDate").onchange=()=>{ $("matchDate").disabled = !$("useDate").checked; };
 
 function toU8(ret){ return (ret && ret.toJs) ? ret.toJs() : ret; }
 function procName(n){ return n.replace(/\.xlsx$/i, "") + "_processed.xlsx"; }
@@ -616,6 +625,7 @@ runBtn.onclick=async()=>{
   runBtn.disabled=true; runBtn.textContent="処理中…";
   logEl.textContent=""; $("dl").innerHTML=""; summaryEl.textContent=""; summaryEl.className="summary";
   const delK=$("delK").checked;
+  const md = ($("useDate").checked && $("matchDate").value) ? $("matchDate").value : null;
   pyodide.globals.get("reset_outputs")();
   const procOne=pyodide.globals.get("process_one");
   const getOut=pyodide.globals.get("get_output");
@@ -625,7 +635,7 @@ runBtn.onclick=async()=>{
     try{
       const buf=new Uint8Array(await f.arrayBuffer());
       const outName=procName(f.name);
-      log(procOne(outName, buf, delK, $("matchDate").value || null));
+      log(procOne(outName, buf, delK, md));
       $("dl").appendChild(download(outName, toU8(getOut(outName))));
       okCount++;
     }catch(e){ log("!! エラー: "+f.name+" / "+e); }
