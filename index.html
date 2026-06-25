@@ -102,7 +102,6 @@
     <h2><span class="num">4</span>結果（ダウンロード）</h2>
     <div id="summary" class="summary"></div>
     <div id="dl" class="dl"></div>
-    <div id="empty" class="empty">実行すると、ここに整形済みファイルのダウンロードが表示されます。</div>
     <details class="detail" id="detail"><summary>処理の詳細を表示</summary><div id="log"></div></details>
     <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲だけ。<b>セルの値・数字は一切書き換えません。</b>出力前に元ファイルと全セル値を自動照合し、万一でも値の変更を検知したら出力を中止します。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
   </div>
@@ -505,7 +504,7 @@ def make_zip():
 <script>
 let pyodide=null, ready=false, selected=[];
 const $=id=>document.getElementById(id);
-const logEl=$("log"), statusEl=$("status"), runBtn=$("run"), summaryEl=$("summary"), emptyEl=$("empty"), detailEl=$("detail");
+const logEl=$("log"), statusEl=$("status"), runBtn=$("run"), summaryEl=$("summary"), detailEl=$("detail");
 function log(s){ logEl.textContent += s + "\n"; logEl.scrollTop=logEl.scrollHeight; }
 
 async function init(){
@@ -561,7 +560,7 @@ function download(name, u8){
 runBtn.onclick=async()=>{
   if(!ready) return;
   runBtn.disabled=true; runBtn.textContent="処理中…";
-  logEl.textContent=""; $("dl").innerHTML=""; summaryEl.textContent=""; summaryEl.className="summary"; emptyEl.style.display="none";
+  logEl.textContent=""; $("dl").innerHTML=""; summaryEl.textContent=""; summaryEl.className="summary";
   const delK=$("delK").checked;
   pyodide.globals.get("reset_outputs")();
   const procOne=pyodide.globals.get("process_one");
