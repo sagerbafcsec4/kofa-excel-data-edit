@@ -275,18 +275,22 @@ def fmt_appearance(ws, log):
 PANELS = [(2,25),(26,49),(50,73),(74,97)]
 PRINT_AREA = {1:"A1:Y49",2:"A1:AW49",3:"A1:BU49",4:"A1:CS49"}
 
+# 空パネルでもテンプレートのセルが約23個入っているため、
+# 実記入(フォーメーション有り)の判定しきい値はそれより十分大きい値にする。
+FILLED_MIN = 40
+
 def fmt_formation(ws, wb, log):
     grid = read_grid(ws)
     n = 0
-    for r1, r2 in ((1,49),(50,97)):
-        for c1, c2 in PANELS:
+    for r1, r2 in ((1,49),(50,97)):            # 上段=試合①②③④ / 下段=試合⑤⑥⑦⑧
+        for c1, c2 in PANELS:                  # 左→右
             cnt = 0
             for r in range(r1, r2 + 1):
                 for c in range(c1, c2 + 1):
                     if not is_empty(g(grid, r, c)):
                         cnt += 1
-                if cnt >= 4: break
-            if cnt >= 4: n += 1
+                if cnt >= FILLED_MIN: break
+            if cnt >= FILLED_MIN: n += 1
     log(f"  フォーメーション数 = {n}")
     if n == 0:
         log(f"  -> 空シート '{ws.title}' 削除"); wb.remove(ws); return
