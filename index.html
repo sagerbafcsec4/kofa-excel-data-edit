@@ -308,6 +308,8 @@ def fmt_hyoki(ws, log):
     ws.column_dimensions["A"].width = 4
     ws.column_dimensions["B"].width = 4
     log("  A列(ポジション)/B列(背番号) -> 幅4 固定")
+    # 特定ヘッダーは自動調整に加えて最低幅を確保(ギリギリ防止)
+    HYOKI_MIN = {"生年月日": 12}
     for c in range(3, maxc + 1):       # C列以降のみ自動調整
         maxw = 0; has_text = False
         for r in range(1, last + 1):
@@ -316,8 +318,15 @@ def fmt_hyoki(ws, log):
             if isinstance(v, str) and not v.replace(".","").replace("-","").isdigit():
                 has_text = True
             maxw = max(maxw, jwidth(v))
+        h = g(grid, 2, c)
+        h = h.strip() if isinstance(h, str) else h
         if has_text and maxw:
-            ws.column_dimensions[get_column_letter(c)].width = min(maxw + 2, 50)
+            width = min(maxw + 2, 50)
+            if h in HYOKI_MIN:
+                width = max(width, HYOKI_MIN[h])
+            ws.column_dimensions[get_column_letter(c)].width = width
+        elif h in HYOKI_MIN:
+            ws.column_dimensions[get_column_letter(c)].width = HYOKI_MIN[h]
 
 def _row_set(ws, r, cmax=14):
     """指定行の非空ヘッダー文字列の集合"""
