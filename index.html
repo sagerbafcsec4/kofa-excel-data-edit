@@ -18,12 +18,10 @@
   body{ background:var(--bg); color:var(--ink); font-family:var(--font); line-height:1.6; }
   .topbar{ height:4px; background:var(--grad); }
   .wrap{ max-width:860px; margin:0 auto; padding:22px 18px 40px; }
-  header{ display:flex; align-items:center; gap:14px; margin:8px 2px 20px; }
+  header{ display:flex; align-items:center; gap:14px; margin:8px 2px 22px; }
   .logo{ width:46px; height:46px; flex:0 0 auto; border-radius:12px; overflow:hidden; box-shadow:0 4px 14px -4px var(--ring); }
   .logo svg{ width:100%; height:100%; display:block; }
   header h1{ margin:0; font-size:22px; font-weight:800; letter-spacing:.01em; }
-  header p{ margin:3px 0 0; color:var(--muted); font-size:.9rem; }
-  .ver{ display:inline-block; margin-top:4px; font-size:.72rem; color:var(--muted); background:var(--soft); border:1px solid var(--line); border-radius:999px; padding:1px 8px; }
   .card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:16px; box-shadow:rgba(15,23,42,.08) 0 2px 12px -6px; }
   h2{ font-size:1.0rem; margin:0 0 14px; display:flex; align-items:center; gap:10px; }
   .num{ width:26px; height:26px; flex:0 0 auto; border-radius:50%; background:var(--grad); color:#fff; font-size:.82rem; font-weight:700; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 8px -2px var(--ring); }
@@ -31,7 +29,10 @@
   #drop:hover,#drop.hover{ border-color:var(--p2); background:var(--soft); color:var(--p1); }
   #drop strong{ color:var(--ink); }
   ul#files{ list-style:none; padding:0; margin:14px 0 0; }
-  ul#files li{ padding:8px 12px; background:var(--soft); border:1px solid var(--line); border-radius:9px; margin-bottom:6px; font-size:.9rem; display:flex; justify-content:space-between; gap:10px; }
+  ul#files li{ padding:8px 12px; background:var(--soft); border:1px solid var(--line); border-radius:9px; margin-bottom:6px; font-size:.9rem; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  ul#files .meta{ display:flex; align-items:center; gap:10px; color:var(--muted); font-size:.82rem; white-space:nowrap; }
+  .rm{ border:0; background:#e7dffb; color:var(--p1); width:22px; height:22px; border-radius:50%; font-size:14px; line-height:1; cursor:pointer; padding:0; }
+  .rm:hover{ background:#d9ccf7; }
   label.chk{ display:flex; align-items:center; gap:9px; font-size:.95rem; cursor:pointer; }
   label.chk input{ width:17px; height:17px; accent-color:var(--p1); }
   button{ font:inherit; border:0; border-radius:9px; padding:11px 22px; cursor:pointer; }
@@ -41,7 +42,6 @@
   .dl{ display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 10px; }
   .dl a{ text-decoration:none; background:var(--soft); color:var(--p1); border:1px solid var(--dash); padding:9px 13px; border-radius:9px; font-size:.88rem; font-weight:600; }
   .dl a:hover{ background:#e9e2fa; }
-  .note{ font-size:.82rem; color:var(--muted); margin:0 0 12px; }
   #log{ background:#1c1530; color:#e7defb; font-family:Consolas,monospace; font-size:.8rem; border-radius:10px; padding:12px; height:220px; overflow:auto; white-space:pre-wrap; }
   .spin{ display:inline-block; width:14px; height:14px; border:2px solid #d8d2e8; border-top-color:var(--p1); border-radius:50%; animation:s .8s linear infinite; vertical-align:-2px; }
   @keyframes s{ to{ transform:rotate(360deg); } }
@@ -69,11 +69,7 @@
 <polygon points="20.2,26.5 21.8,26.5 21,28.4" fill="#3b1d80"/>
 </g>
 </svg></div>
-    <div>
-      <h1>Excelデータ加工</h1>
-      <p>サッカー記録ブックを読み込むだけで、レイアウト整形を自動で行います。</p>
-      <span class="ver">v1 · 2026-06-25</span>
-    </div>
+    <h1>Excelデータ加工</h1>
   </header>
 
   <div class="card">
@@ -97,7 +93,6 @@
   <div class="card">
     <h2><span class="num">4</span>結果（ダウンロード）</h2>
     <div id="dl" class="dl"></div>
-    <p class="note">加工後ファイルは末尾に <b>_processed</b> が付きます。複数ファイルは「ZIPでまとめてダウンロード」が便利です。</p>
     <div id="log"></div>
     <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲だけ。<b>セルの値・数字は一切書き換えません。</b>出力前に元ファイルと全セル値を自動照合し、万一でも値の変更を検知したら出力を中止します。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
   </div>
@@ -506,7 +501,7 @@ function log(s){ logEl.textContent += s + "\n"; logEl.scrollTop=logEl.scrollHeig
 async function init(){
   try{
     pyodide = await loadPyodide({ indexURL:"https://cdn.jsdelivr.net/pyodide/v0.27.7/full/" });
-    statusEl.innerHTML = '<span class="spin"></span> 部品を取得中（openpyxl）…';
+    statusEl.innerHTML = '<span class="spin"></span> 部品を取得中…';
     await pyodide.loadPackage("micropip");
     await pyodide.runPythonAsync(`
 import micropip
@@ -514,21 +509,36 @@ await micropip.install(["openpyxl","et_xmlfile"])
 `);
     await pyodide.runPythonAsync($("engine").textContent);
     ready=true; updateRun();
-    statusEl.textContent = "✅ 準備完了。ファイルを選んで「実行」を押してください。";
-  }catch(e){ statusEl.textContent = "⚠ エンジンの初期化に失敗: " + e; }
+    statusEl.style.display="none";
+  }catch(e){ statusEl.style.display=""; statusEl.textContent = "⚠ エンジンの初期化に失敗: " + e; }
 }
 function updateRun(){ runBtn.disabled = !(ready && selected.length>0); }
 function showFiles(){
   const ul=$("files"); ul.innerHTML="";
-  selected.forEach(f=>{ const li=document.createElement("li");
-    li.innerHTML = "<span>"+f.name+"</span><span>"+Math.round(f.size/1024)+" KB</span>"; ul.appendChild(li); });
+  selected.forEach((f,i)=>{
+    const li=document.createElement("li");
+    const left=document.createElement("span"); left.textContent=f.name;
+    const meta=document.createElement("span"); meta.className="meta";
+    const kb=document.createElement("span"); kb.textContent=Math.round(f.size/1024)+" KB";
+    const x=document.createElement("button"); x.className="rm"; x.textContent="×"; x.title="このファイルを外す";
+    x.onclick=()=>{ selected.splice(i,1); showFiles(); updateRun(); };
+    meta.appendChild(kb); meta.appendChild(x);
+    li.appendChild(left); li.appendChild(meta); ul.appendChild(li);
+  });
+}
+function addFiles(list){
+  for(const f of [...list]){
+    if(!f.name.toLowerCase().endsWith(".xlsx")) continue;
+    if(!selected.some(s=>s.name===f.name && s.size===f.size)) selected.push(f);
+  }
+  showFiles(); updateRun();
 }
 const drop=$("drop"), fileInput=$("file");
 drop.onclick=()=>fileInput.click();
-fileInput.onchange=e=>{ selected=[...e.target.files].filter(f=>f.name.toLowerCase().endsWith(".xlsx")); showFiles(); updateRun(); };
+fileInput.onchange=e=>{ addFiles(e.target.files); fileInput.value=""; };
 ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("hover");}));
 ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hover");}));
-drop.addEventListener("drop",e=>{ selected=[...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith(".xlsx")); showFiles(); updateRun(); });
+drop.addEventListener("drop",e=>{ addFiles(e.dataTransfer.files); });
 
 function toU8(ret){ return (ret && ret.toJs) ? ret.toJs() : ret; }
 function procName(n){ return n.replace(/\.xlsx$/i, "") + "_processed.xlsx"; }
@@ -566,7 +576,7 @@ runBtn.onclick=async()=>{
     }catch(e){ log("ZIP作成エラー: "+e); }
   }
   log("\n完了: "+okCount+"/"+selected.length+" ファイル");
-  runBtn.disabled=false; runBtn.textContent="▶ 実行";
+  runBtn.disabled=false; runBtn.textContent="▶ 実行"; updateRun();
 };
 init();
 </script>
