@@ -303,7 +303,12 @@ def fmt_hyoki(ws, log):
     grid = read_grid(ws)
     maxc = max((len(r) for r in grid), default=0)
     last = last_data_row(grid, 1, maxc)
-    for c in range(1, maxc + 1):
+    # A列(ポジション)・B列(背番号)は幅4で固定。
+    # (A1のチーム名タイトルを自動調整に含めると広がりすぎるため)
+    ws.column_dimensions["A"].width = 4
+    ws.column_dimensions["B"].width = 4
+    log("  A列(ポジション)/B列(背番号) -> 幅4 固定")
+    for c in range(3, maxc + 1):       # C列以降のみ自動調整
         maxw = 0; has_text = False
         for r in range(1, last + 1):
             v = g(grid, r, c)
@@ -482,7 +487,6 @@ def main():
         inputs = [BASE]
     run(inputs, resolve_keireki())
 
-# ===== Web(ブラウザ)用アダプタ：安全装置 process_checked を必ず通す =====
 import io, zipfile
 _OUTPUTS = {}
 def reset_outputs():
