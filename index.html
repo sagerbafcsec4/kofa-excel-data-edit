@@ -224,8 +224,10 @@ def fmt_appearance(ws, log):
     last = last_data_row(grid, 1, maxc)
     w = max((jwidth(g(grid, r, 3)) for r in range(1, last+1) if not is_empty(g(grid, r, 3))), default=0)
     if w:
-        ws.column_dimensions["C"].width = min(w + 2, 40)
-        log(f"  名前列 C autofit -> {ws.column_dimensions['C'].width}")
+        # 日本語(全角)は実表示が広いので係数を掛け、余白を多めに取って必ず収まるようにする
+        width = min(round(w * 1.2) + 4, 80)
+        ws.column_dimensions["C"].width = width
+        log(f"  名前列 C autofit -> {width}")
     def match_empty_2row(r1, r2):
         for r in (r1, r2):
             for c in range(H, maxc + 1):
@@ -468,6 +470,7 @@ def run(inputs, delete_keireki, progress=None):
     ok = sum(1 for _, s in results if s == "OK")
     emit(f"\n完了: {ok}/{len(results)} ファイル処理。出力先: {out_dir}")
     return out_dir, results
+
 
 def main():
     inputs = [a for a in sys.argv[1:] if not a.startswith("-")]
