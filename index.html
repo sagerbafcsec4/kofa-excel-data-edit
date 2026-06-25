@@ -41,7 +41,8 @@
   #status{ font-size:.88rem; color:var(--muted); margin-top:10px; }
   .empty{ color:var(--muted); font-size:.9rem; }
   .setq{ font-weight:700; font-size:.92rem; margin:0 0 8px; }
-  .hint{ font-size:.8rem; color:var(--muted); margin:4px 0 0 26px; }
+  .hint{ font-size:.8rem; color:var(--muted); margin:4px 0 0; }
+  .dateinput{ font:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); accent-color:var(--p1); }
   .summary{ font-size:.98rem; font-weight:700; margin:2px 0 10px; }
   .summary.ok{ color:var(--ok); } .summary.warn{ color:var(--warn); }
   .dl{ display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 6px; }
@@ -91,10 +92,9 @@
 
   <div class="card">
     <h2><span class="num">2</span>設定</h2>
-    <div class="setq">試合日を指定しますか？</div>
-    <label class="chk"><input id="useDate" type="checkbox"> 指定する（表記シートの「歳」列に、その日の年齢を入れる）</label>
-    <label class="chk" style="margin-top:6px; margin-left:26px;">試合日：<input id="matchDate" type="date" disabled style="margin-left:8px; accent-color:var(--p1);"></label>
-    <div class="hint">指定しない場合は「歳」列を変更しません（元の値のまま・厳格に照合）。</div>
+    <div class="setq">試合日（年齢の基準日・任意）</div>
+    <input id="matchDate" type="date" class="dateinput">
+    <div class="hint">日付を入れると、表記シートの「歳」列にその日時点の年齢が入ります。空欄なら歳列は変更しません。</div>
     <div class="setq" style="margin-top:18px;">経歴シートを削除しますか？</div>
     <label class="chk"><input id="delK" type="checkbox" checked> 削除する</label>
   </div>
@@ -610,7 +610,6 @@ fileInput.onchange=e=>{ addFiles(e.target.files); fileInput.value=""; };
 ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("hover");}));
 ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hover");}));
 drop.addEventListener("drop",e=>{ addFiles(e.dataTransfer.files); });
-$("useDate").onchange=()=>{ $("matchDate").disabled = !$("useDate").checked; };
 
 function toU8(ret){ return (ret && ret.toJs) ? ret.toJs() : ret; }
 function procName(n){ return n.replace(/\.xlsx$/i, "") + "_processed.xlsx"; }
@@ -625,7 +624,7 @@ runBtn.onclick=async()=>{
   runBtn.disabled=true; runBtn.textContent="処理中…";
   logEl.textContent=""; $("dl").innerHTML=""; summaryEl.textContent=""; summaryEl.className="summary";
   const delK=$("delK").checked;
-  const md = ($("useDate").checked && $("matchDate").value) ? $("matchDate").value : null;
+  const md = $("matchDate").value || null;
   pyodide.globals.get("reset_outputs")();
   const procOne=pyodide.globals.get("process_one");
   const getOut=pyodide.globals.get("get_output");
