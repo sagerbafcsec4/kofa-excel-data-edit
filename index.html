@@ -333,6 +333,10 @@ def fmt_hyoki(ws, log):
                 ws.cell(r, age_col).value = f'=DATEDIF({bdL}{r}, "{date_str}", "Y")'
                 cnt_age += 1
         log(f"  歳列({get_column_letter(age_col)}) に {date_str} 基準の年齢式を {cnt_age}件 設定")
+        # 監督(最終データ行)の年齢の直下に注記を入れる
+        note_cell = f"{get_column_letter(age_col)}{last + 1}"
+        ws.cell(last + 1, age_col).value = "※年齢は試合当日の年齢"
+        log(f"  注記 {note_cell} に『※年齢は試合当日の年齢』を設定")
     elif age_col:
         log("  歳列: 試合日未指定のため変更なし(元の値のまま・厳格照合)")
     # 特定ヘッダーは自動調整に加えて最低幅を確保(ギリギリ防止)
