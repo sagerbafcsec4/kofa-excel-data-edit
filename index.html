@@ -40,6 +40,9 @@
   button.primary:disabled{ background:#c7c2d6; box-shadow:none; cursor:not-allowed; }
   #status{ font-size:.88rem; color:var(--muted); margin-top:10px; }
   .empty{ color:var(--muted); font-size:.9rem; }
+  .alert{ display:none; border-radius:10px; padding:12px 14px; margin:0 0 12px; font-size:.9rem; line-height:1.75; }
+  .alert.danger{ display:block; background:#fdecec; border:1px solid #f3b4b4; color:#9b1c1c; }
+  .alert b{ color:#7f1414; }
   .setq{ font-weight:700; font-size:.92rem; margin:0 0 8px; }
   .hint{ font-size:.8rem; color:var(--muted); margin:4px 0 0; }
   .dateinput{ font:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); accent-color:var(--p1); }
@@ -108,13 +111,13 @@
 
   <div class="card">
     <h2><span class="num">4</span>結果（ダウンロード）</h2>
+    <div id="alert" class="alert"></div>
     <div id="summary" class="summary"></div>
     <div id="dl" class="dl"></div>
     <details class="detail" id="detail"><summary>処理の詳細を表示</summary><div id="log"></div></details>
     <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記シートの「歳」列に年齢計算式を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
   </div>
 </div>
-
 
 <script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
 <script>
@@ -205,6 +208,8 @@ runBtn.onclick=async()=>{
   if(!ready) return;
   runBtn.disabled=true; runBtn.textContent="処理中…";
   logEl.textContent=""; $("dl").innerHTML=""; summaryEl.textContent=""; summaryEl.className="summary";
+  $("alert").className="alert"; $("alert").innerHTML="";
+  const blocked=[], errored=[];
   const delK=$("delK").checked;
   const md = ($("useDate").checked && $("matchDate").value) ? $("matchDate").value : null;
   pyodide.globals.get("reset_outputs")();
@@ -219,7 +224,11 @@ runBtn.onclick=async()=>{
       log(procOne(outName, buf, delK, md));
       $("dl").appendChild(download(outName, toU8(getOut(outName))));
       okCount++;
-    }catch(e){ log("!! エラー: "+f.name+" / "+e); }
+    }catch(e){
+      const _m=String(e);
+      if(_m.includes("安全チェック失敗")) blocked.push(f.name); else errored.push(f.name);
+      log("!! エラー: "+f.name+" / "+e);
+    }
   }
   if(okCount>1){
     try{
@@ -231,11 +240,22 @@ runBtn.onclick=async()=>{
     }catch(e){ log("ZIP作成エラー: "+e); }
   }
   const total=selected.length;
+  if(blocked.length){
+    $("alert").className="alert danger";
+    $("alert").innerHTML = "⚠ <b>安全のため出力を中止しました</b><br>"
+      + "次のファイルで<b>セルの値が変わる可能性</b>を検知したため、ファイルは作成していません"
+      + "（<b>元のファイルは無事です</b>）。お手数ですが元データを確認のうえ、もう一度お試しください：<br>・"
+      + blocked.join("<br>・");
+    detailEl.open=true;
+  }
   if(okCount===total){
-    summaryEl.textContent = `✔ ${okCount}件すべて整形が完了しました（セルの値は変更していません）`;
+    summaryEl.textContent = "✔ " + okCount + "件すべて整形が完了しました（セルの値は変更していません）";
     summaryEl.className="summary ok";
   }else{
-    summaryEl.textContent = `⚠ ${okCount}/${total}件 完了。残りはエラーです（「処理の詳細を表示」で確認してください）`;
+    let msg = "⚠ " + okCount + "/" + total + "件 完了";
+    if(blocked.length) msg += "（" + blocked.length + "件は安全のため中止）";
+    if(errored.length) msg += "（" + errored.length + "件はエラー）";
+    summaryEl.textContent = msg + "。詳細は「処理の詳細を表示」から確認できます。";
     summaryEl.className="summary warn"; detailEl.open=true;
   }
   log("\n完了: "+okCount+"/"+total+" ファイル");
