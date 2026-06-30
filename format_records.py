@@ -9,7 +9,7 @@
 import sys, os, glob
 from datetime import datetime
 import openpyxl
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, column_index_from_string
 from copy import copy
 from collections import Counter
 
@@ -232,7 +232,19 @@ def fmt_hyoki(ws, log):
     elif age_col:
         log("  歳列: 試合日未指定のため変更なし")
     # 列幅(表記のみ): 狭めるの禁止。広げるのは文字が切れる(内容>現在幅)時だけ。タイトル(行1)は除外。
+    # 重要: openpyxlは範囲指定された<col>(例 A-B共通幅)を持つ列の column_dimensions に
+    #   アクセス/設定すると勝手に幅を書き換えてしまう。よって
+    #   (1) 既存の範囲を展開して各列の"本当の現在幅"を求める
+    #   (2) 実際に広げる列だけ column_dimensions を触る(それ以外は一切触らない=原本保持)
     DEFAULT_W = 8.43
+    truew = {}
+    for key, cd in list(ws.column_dimensions.items()):
+        if cd.width is None:
+            continue
+        mn = cd.min or column_index_from_string(key)
+        mx = cd.max or mn
+        for ci in range(mn, mx + 1):
+            truew[ci] = cd.width
     for c in range(1, maxc + 1):
         need = 0
         for r in range(2, last + 1):
@@ -241,11 +253,10 @@ def fmt_hyoki(ws, log):
                 need = max(need, jwidth(v))
         if need == 0:
             continue
-        cur = ws.column_dimensions[get_column_letter(c)].width or DEFAULT_W
-        # 明確に溢れている時だけ広げる(僅差=表示上切れていない範囲は触らない)。狭めるのは禁止。
-        if need > cur + 1:
+        cur = truew.get(c, DEFAULT_W)
+        if need > cur + 1:   # 明確に溢れている列だけ広げる。狭めない。未変更列は触らない。
             ws.column_dimensions[get_column_letter(c)].width = round(need + 0.5, 2)
-            log(f"  幅 {get_column_letter(c)} {round(cur,1)}->{round(need+0.5,2)} (切れ防止で拡張)")
+            log(f"  幅 {get_column_letter(c)} {round(cur,2)}->{round(need+0.5,2)} (切れ防止で拡張)")
 
 def _row_set(ws, r, cmax=14):
     s = set()
