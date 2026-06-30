@@ -54,6 +54,8 @@
   .dl a:hover{ background:#e9e2fa; }
   .zipbtn{ display:inline-flex; align-items:center; gap:8px; text-decoration:none; background:var(--grad); color:#fff; font-weight:700; font-size:.98rem; padding:13px 22px; border-radius:10px; box-shadow:0 8px 18px -6px var(--ring); margin:4px 0 14px; }
   .zipbtn:hover{ filter:brightness(1.06); }
+  .folderbtn{ display:inline-flex; align-items:center; gap:8px; background:#fff; color:var(--p1); border:2px solid var(--p1); font-weight:700; font-size:.98rem; padding:11px 20px; border-radius:10px; cursor:pointer; margin:4px 10px 14px 0; }
+  .folderbtn:hover{ background:var(--soft); }
   .dl-label{ font-size:.82rem; color:var(--muted); margin:0 0 6px; font-weight:600; }
   details.detail{ margin-top:6px; }
   details.detail summary{ cursor:pointer; color:var(--muted); font-size:.84rem; list-style:none; }
@@ -213,7 +215,7 @@ runBtn.onclick=async()=>{
   runBtn.disabled=true; runBtn.textContent="処理中…";
   logEl.textContent=""; $("dl").innerHTML=""; summaryEl.textContent=""; summaryEl.className="summary";
   $("alert").className="alert"; $("alert").innerHTML=""; $("zip").innerHTML="";
-  const blocked=[], errored=[];
+  const blocked=[], errored=[], outNames=[];
   const delK=$("delK").checked;
   const md = ($("useDate").checked && $("matchDate").value) ? $("matchDate").value : null;
   pyodide.globals.get("reset_outputs")();
@@ -227,7 +229,7 @@ runBtn.onclick=async()=>{
       const outName=procName(f.name);
       log(procOne(outName, buf, delK, md));
       $("dl").appendChild(download(outName, toU8(getOut(outName))));
-      okCount++;
+      outNames.push(outName); okCount++;
     }catch(e){
       const _m=String(e);
       if(_m.includes("安全チェック失敗")) blocked.push(f.name); else errored.push(f.name);
@@ -245,6 +247,27 @@ runBtn.onclick=async()=>{
       const lab=document.createElement("div"); lab.className="dl-label"; lab.textContent="個別にダウンロード：";
       $("dl").prepend(lab);
     }catch(e){ log("ZIP作成エラー: "+e); }
+  }
+  // フォルダにまとめて保存(対応ブラウザ: Chrome/Edge)
+  if(okCount>=1 && window.showDirectoryPicker){
+    const fb=document.createElement("button");
+    fb.className="folderbtn";
+    fb.textContent="📁 フォルダにまとめて保存（"+okCount+"ファイル）";
+    fb.onclick=async()=>{
+      try{
+        const dir=await window.showDirectoryPicker();
+        let saved=0;
+        for(const nm of outNames){
+          const fh=await dir.getFileHandle(nm, {create:true});
+          const w=await fh.createWritable();
+          await w.write(toU8(getOut(nm))); await w.close();
+          saved++;
+        }
+        log("📁 フォルダへ "+saved+" 件を保存しました");
+        alert(saved+" 件を選んだフォルダに保存しました。");
+      }catch(e){ if(e && e.name!=="AbortError") log("フォルダ保存エラー: "+e); }
+    };
+    $("zip").appendChild(fb);
   }
   const total=selected.length;
   if(blocked.length){
