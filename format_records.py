@@ -3,20 +3,6 @@
 """
 サッカー記録ワークブック バッチ整形スクリプト (excel-data skill 準拠)
 
-原則:
-  - 入力データ(セルの値)は絶対に変更しない。整形・削除(行/列/シート)のみ。
-  - 元ファイルは触らない。コピーを _processed/ に出力する。
-  - 全ての削除・整形を _logs/ に記録する。
-
-使い方:
-  python format_records.py                  # フォルダ内 *.xlsx を全処理
-  python format_records.py FILE.xlsx ...    # 指定ファイルのみ
-  python format_records.py --delete-keireki # 「経歴」を削除(起動時の質問を省略)
-  python format_records.py --keep-keireki   # 「経歴」を保持(起動時の質問を省略)
-
-「経歴」シートの扱いはフラグ未指定なら起動時に確認する。
-全シート(出場記録/シーズン/表記/経歴/フォーメーション)を名前ではなくヘッダー構造で判定する。
-
 ★このファイルがロジックの唯一の正本。Webアプリ(index.html)は実行時にこれを読み込むため、
   ロジックの修正はこのファイルだけ直せばよい(index.html 側に書き写す必要はない)。
 """
@@ -29,11 +15,11 @@ from collections import Counter
 
 try:
     BASE = os.path.dirname(os.path.abspath(__file__))
-except NameError:        # ブラウザ(Pyodide)等で __file__ が無い場合
+except NameError:
     BASE = os.getcwd()
 OUT  = os.path.join(BASE, "_processed")
 LOGS = os.path.join(BASE, "_logs")
-DELETE_KEIREKI = None   # main() で確定(True=削除 / False=保持)
+DELETE_KEIREKI = None
 MATCH_DATE = None       # 試合日 "YYYY/MM/DD"。None(未指定)なら歳列は変更しない
 
 def is_empty(v):
@@ -76,6 +62,10 @@ def col_empty(grid, c, r1, r2):
 
 WIDTHS = {"節":10,"開催日":10,"H":3,"A":3,"ｽｺｱ":8,"スコア":8,"対戦相手":30,"退場":20,"NEWS":60}
 
+def _is_note(v):
+    """表外の注記セルか(縮小・書式変更してはいけない)。"""
+    return isinstance(v, str) and ("用語説明" in v or v.lstrip().startswith("【"))
+
 def fmt_season(ws, log):
     grid = read_grid(ws)
     last = last_data_row(grid, 1, 18)
@@ -94,9 +84,19 @@ def fmt_season(ws, log):
         ws.delete_cols(c, 1)
     grid = read_grid(ws)
     fmax = max((c for c in range(1, 26) if not is_empty(g(grid, 2, c))), default=18)
-    for row in ws.iter_rows(min_row=2, max_row=last, min_col=1, max_col=fmax):
+    # フォント11pt + 縮小は「表の枠内」だけ。表外の注記(【用語説明】等)は触らない。
+    tbl_last = max((r for r in range(3, last + 1) if not is_empty(g(grid, r, 1))), default=2)
+    for row in ws.iter_rows(min_row=2, max_row=tbl_last, min_col=1, max_col=fmax):
         for cell in row:
+            if _is_note(cell.value):
+                continue
             set_font_size(cell, 11); set_shrink(cell)
+    # 表外の注記(用語説明等)に残っている「縮小して全体を表示」を能動的に解除する
+    for row in ws.iter_rows():
+        for cell in row:
+            if _is_note(cell.value) and cell.alignment.shrink_to_fit:
+                a = copy(cell.alignment); a.shrink_to_fit = False; cell.alignment = a
+                log(f"  注記 {cell.coordinate} の縮小を解除")
     for c in range(1, fmax + 1):
         h = g(grid, 2, c)
         h = h.strip() if isinstance(h, str) else h
@@ -118,7 +118,6 @@ def fmt_appearance(ws, log):
     last = last_data_row(grid, 1, maxc)
     w = max((jwidth(g(grid, r, 3)) for r in range(1, last+1) if not is_empty(g(grid, r, 3))), default=0)
     if w:
-        # 日本語(全角)は実表示が広いので係数を掛け、余白を多めに取って必ず収まるようにする
         width = min(round(w * 1.2) + 4, 80)
         ws.column_dimensions["C"].width = width
         log(f"  名前列 C autofit -> {width}")
@@ -165,19 +164,27 @@ def fmt_appearance(ws, log):
             n = maxc2 - cut + 1
             log(f"  未実施試合 {get_column_letter(cut)}:{get_column_letter(maxc2)} ({n}列) -> 削除")
             ws.delete_cols(cut, n)
+    # 凡例(◎：フル出場…)の結合は指示外なので解除する(最終レイアウトで判定)
+    g3 = read_grid(ws)
+    legend_row = next((r for r in range(1, len(g3) + 1)
+                       if isinstance(g(g3, r, 1), str) and "フル出場" in g(g3, r, 1)), None)
+    if legend_row is not None:
+        removed = 0
+        for m in list(ws.merged_cells.ranges):
+            if m.min_row == legend_row:
+                ws.unmerge_cells(str(m)); removed += 1
+        if removed:
+            log(f"  凡例(行{legend_row})の結合を {removed}件 解除")
 
 PANELS = [(2,25),(26,49),(50,73),(74,97)]
-PRINT_AREA = {1:"A1:Y49",2:"A1:AW49",3:"A1:BU49",4:"A1:CS49"}
-
-# 空パネルでもテンプレートのセルが約23個入っているため、
-# 実記入(フォーメーション有り)の判定しきい値はそれより十分大きい値にする。
+RIGHT_COL = {1:"Y", 2:"AW", 3:"BU", 4:"CS"}
 FILLED_MIN = 40
 
 def fmt_formation(ws, wb, log):
     grid = read_grid(ws)
     n = 0
-    for r1, r2 in ((1,49),(50,97)):            # 上段=試合①②③④ / 下段=試合⑤⑥⑦⑧
-        for c1, c2 in PANELS:                  # 左→右
+    for r1, r2 in ((1,49),(50,97)):
+        for c1, c2 in PANELS:
             cnt = 0
             for r in range(r1, r2 + 1):
                 for c in range(c1, c2 + 1):
@@ -189,7 +196,15 @@ def fmt_formation(ws, wb, log):
     if n == 0:
         log(f"  -> 空シート '{ws.title}' 削除"); wb.remove(ws); return
     if n <= 4:
-        ws.print_area = PRINT_AREA[n]; log(f"  -> 印刷範囲 {PRINT_AREA[n]}")
+        # 上段の下端を動的に決定。テンプレの「負傷」行が上段/下段に1つずつあるので、
+        # その間隔=バンド高さ。上段の下端=1+バンド高さ → スタッツ(枠/CK)行まで含まれる。
+        injuries = [r for r in range(1, len(grid) + 1)
+                    if any(isinstance(g(grid, r, c), str) and g(grid, r, c).strip() == "負傷"
+                           for c in (2, 26, 50, 74))]
+        bottom = (1 + (injuries[1] - injuries[0])) if len(injuries) >= 2 else 49
+        right = RIGHT_COL[n]
+        ws.print_area = f"A1:{right}{bottom}"
+        log(f"  -> 印刷範囲 A1:{right}{bottom}")
     else:
         log(f"  -> 5試合以上、印刷範囲は変更なし")
 
@@ -197,12 +212,6 @@ def fmt_hyoki(ws, log):
     grid = read_grid(ws)
     maxc = max((len(r) for r in grid), default=0)
     last = last_data_row(grid, 1, maxc)
-    # A列(ポジション)・B列(背番号)は幅4で固定。
-    # (A1のチーム名タイトルを自動調整に含めると広がりすぎるため)
-    ws.column_dimensions["A"].width = 4
-    ws.column_dimensions["B"].width = 4
-    log("  A列(ポジション)/B列(背番号) -> 幅4 固定")
-    # 歳(年齢)列に、試合日(未指定なら今日)基準の年齢を求める式を入れる
     age_col = bd_col = None
     for c in range(1, maxc + 1):
         h = g(grid, 2, c)
@@ -214,38 +223,31 @@ def fmt_hyoki(ws, log):
         date_str = MATCH_DATE.replace("-", "/")
         cnt_age = 0
         for r in range(3, last + 1):
-            if not is_empty(g(grid, r, bd_col)):   # 生年月日がある行(選手〜監督)だけ
+            if not is_empty(g(grid, r, bd_col)):
                 ws.cell(r, age_col).value = f'=DATEDIF({bdL}{r}, "{date_str}", "Y")'
                 cnt_age += 1
         log(f"  歳列({get_column_letter(age_col)}) に {date_str} 基準の年齢式を {cnt_age}件 設定")
-        # 監督(最終データ行)の年齢の直下に注記を入れる
-        note_cell = f"{get_column_letter(age_col)}{last + 1}"
         ws.cell(last + 1, age_col).value = "※年齢は試合当日の年齢"
-        log(f"  注記 {note_cell} に『※年齢は試合当日の年齢』を設定")
+        log(f"  注記 {get_column_letter(age_col)}{last + 1} に『※年齢は試合当日の年齢』を設定")
     elif age_col:
-        log("  歳列: 試合日未指定のため変更なし(元の値のまま・厳格照合)")
-    # 特定ヘッダーは自動調整に加えて最低幅を確保(ギリギリ防止)
-    HYOKI_MIN = {"生年月日": 12}
-    for c in range(3, maxc + 1):       # C列以降のみ自動調整
-        maxw = 0; has_text = False
-        for r in range(1, last + 1):
+        log("  歳列: 試合日未指定のため変更なし")
+    # 列幅(表記のみ): 狭めるの禁止。広げるのは文字が切れる(内容>現在幅)時だけ。タイトル(行1)は除外。
+    DEFAULT_W = 8.43
+    for c in range(1, maxc + 1):
+        need = 0
+        for r in range(2, last + 1):
             v = g(grid, r, c)
-            if is_empty(v): continue
-            if isinstance(v, str) and not v.replace(".","").replace("-","").isdigit():
-                has_text = True
-            maxw = max(maxw, jwidth(v))
-        h = g(grid, 2, c)
-        h = h.strip() if isinstance(h, str) else h
-        if has_text and maxw:
-            width = min(maxw + 2, 50)
-            if h in HYOKI_MIN:
-                width = max(width, HYOKI_MIN[h])
-            ws.column_dimensions[get_column_letter(c)].width = width
-        elif h in HYOKI_MIN:
-            ws.column_dimensions[get_column_letter(c)].width = HYOKI_MIN[h]
+            if not is_empty(v):
+                need = max(need, jwidth(v))
+        if need == 0:
+            continue
+        need = need + 1
+        cur = ws.column_dimensions[get_column_letter(c)].width or DEFAULT_W
+        if need > cur:
+            ws.column_dimensions[get_column_letter(c)].width = need
+            log(f"  幅 {get_column_letter(c)} {round(cur,1)}->{need} (広げのみ)")
 
 def _row_set(ws, r, cmax=14):
-    """指定行の非空ヘッダー文字列の集合"""
     s = set()
     for c in range(1, cmax + 1):
         v = ws.cell(r, c).value
@@ -257,34 +259,26 @@ def _cell(ws, r, c):
     v = ws.cell(r, c).value
     return str(v).strip() if v not in (None, "") else ""
 
-# ---- 構造判定: シートタイプを名前に依存せずヘッダー構造で判別 ----------------
 def is_appearance_sheet(ws):
-    """§A 出場記録: D1='出場記録'、または 行4 が Pos/No/Name。"""
     if _cell(ws, 1, 4) == "出場記録":
         return True
     return _cell(ws, 4, 1) == "Pos" and _cell(ws, 4, 2) == "No" and _cell(ws, 4, 3) == "Name"
 
 def is_season_sheet(ws):
-    """§B シーズン記録: 行2 に『節』『開催日』『対戦相手』。"""
     h = _row_set(ws, 2)
     return "節" in h and "開催日" in h and "対戦相手" in h
 
 def is_hyoki_sheet(ws):
-    """§D 表記: 行2 に『統一表記』(このシート固有)。"""
     return "統一表記" in _row_set(ws, 2)
 
 def is_keireki_sheet(ws):
-    """§E 経歴: 行2 に『主な下部組織』『経歴』(このシート固有)。"""
     h = _row_set(ws, 2)
     return "主な下部組織" in h and "経歴" in h
 
 def is_formation_sheet(ws):
-    """名前に依存せず構造で判定。4列×2行のパネルグリッド(最終列が CS=97 付近)を
-    持つシートを §C とする。出場記録/シーズン/表記/経歴 は呼び出し側で先に除外済み。"""
     return 90 <= ws.max_column <= 110
 
 def process_wb(wb, log):
-    """開いた Workbook を構造判定で整形する(ディスク/メモリ共通)。"""
     for ws in list(wb.worksheets):
         t = ws.title
         if is_appearance_sheet(ws):
@@ -305,9 +299,6 @@ def process_wb(wb, log):
     return wb
 
 def _exempt_cols(ws):
-    """安全チェックで照合から除外する列(意図的に書き換える列)。
-    試合日が指定されたときのみ、表記シートの『歳』列を除外する。
-    未指定なら除外なし=歳列も含め全セルを厳格に照合する。"""
     if MATCH_DATE and is_hyoki_sheet(ws):
         for c in range(1, (ws.max_column or 0) + 1):
             v = ws.cell(2, c).value
@@ -316,7 +307,6 @@ def _exempt_cols(ws):
     return set()
 
 def _sheet_values(ws):
-    """シート内の非空セル値を多重集合(Counter)で返す。除外列はスキップ。"""
     exempt = _exempt_cols(ws)
     c = Counter()
     for row in ws.iter_rows(values_only=True):
@@ -328,25 +318,21 @@ def _sheet_values(ws):
     return c
 
 def snapshot_values(wb):
-    """処理前に全シートのセル値スナップショットを取る。"""
     return {ws.title: _sheet_values(ws) for ws in wb.worksheets}
 
 def verify_no_value_change(before, wb):
-    """出力に『元に無い/増えた値』が無いか検査する安全装置。
-    行・列・シート削除による値の減少は許容。値の改変・追加(=増加や新出)は違反として返す。"""
     problems = []
     for ws in wb.worksheets:
         base = before.get(ws.title)
         if base is None:
             problems.append(f"シート『{ws.title}』が元ファイルに無い(追加されている)")
             continue
-        extra = _sheet_values(ws) - base   # 出力にあって元に無い/増えた値
+        extra = _sheet_values(ws) - base
         if extra:
             problems.append(f"シート『{ws.title}』で値の変更/追加を検知: {list(extra.items())[:5]}")
     return problems
 
 def process_checked(wb, log):
-    """処理→安全検査。値の改変を検知したら例外を投げ、出力させない。"""
     before = snapshot_values(wb)
     process_wb(wb, log)
     problems = verify_no_value_change(before, wb)
@@ -372,8 +358,6 @@ def processed_name(name):
     return base + "_processed" + (ext or ".xlsx")
 
 def run(inputs, delete_keireki, progress=None):
-    """GUI/CLI 共通エンジン。inputs=フォルダ or ファイルのリスト。
-    出力は入力フォルダ直下の _processed / _logs。progress(str) で進捗通知。"""
     global DELETE_KEIREKI
     DELETE_KEIREKI = delete_keireki
     def emit(s):
@@ -418,7 +402,6 @@ def run(inputs, delete_keireki, progress=None):
     ok = sum(1 for _, s in results if s == "OK")
     emit(f"\n完了: {ok}/{len(results)} ファイル処理。出力先: {out_dir}")
     return out_dir, results
-
 
 def main():
     inputs = [a for a in sys.argv[1:] if not a.startswith("-")]
