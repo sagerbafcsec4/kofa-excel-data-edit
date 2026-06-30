@@ -116,11 +116,19 @@ def fmt_appearance(ws, log):
     H = 8
     maxc = max((len(r) for r in grid), default=0)
     last = last_data_row(grid, 1, maxc)
-    w = max((jwidth(g(grid, r, 3)) for r in range(1, last+1) if not is_empty(g(grid, r, 3))), default=0)
-    if w:
-        width = min(round(w * 1.2) + 4, 80)
-        ws.column_dimensions["C"].width = width
-        log(f"  名前列 C autofit -> {width}")
+    # C列(名前): 狭めるの禁止。切れている時だけ広げる(範囲指定を展開して真の幅を取得)。
+    need = max((jwidth(g(grid, r, 3)) for r in range(1, last+1) if not is_empty(g(grid, r, 3))), default=0)
+    if need:
+        truew = {}
+        for k, cd in list(ws.column_dimensions.items()):
+            if cd.width is None: continue
+            mn = cd.min or column_index_from_string(k); mx = cd.max or mn
+            for x in range(mn, mx + 1): truew[x] = cd.width
+        curC = truew.get(3, 8.43)
+        target = round(need * 1.1) + 2
+        if target > curC + 1:
+            ws.column_dimensions["C"].width = target
+            log(f"  名前列C {round(curC,2)}->{target} (切れ防止で拡張)")
     def match_empty_2row(r1, r2):
         for r in (r1, r2):
             for c in range(H, maxc + 1):
@@ -175,6 +183,25 @@ def fmt_appearance(ws, log):
                 ws.unmerge_cells(str(m)); removed += 1
         if removed:
             log(f"  凡例(行{legend_row})の結合を {removed}件 解除")
+    # 監督(A列='監督')のA・B結合を保持: 行削除でA-B横結合が割れることがあるので再結合する
+    mr = next((r for r in range(1, len(g3) + 1)
+               if str(g(g3, r, 1)).strip() == "監督"), None)
+    if mr is not None:
+        bottom = mr + 1
+        for m in list(ws.merged_cells.ranges):
+            if m.min_col <= 2 and m.min_row <= mr <= m.max_row:
+                bottom = max(bottom, m.max_row); ws.unmerge_cells(str(m))
+        ws.merge_cells(start_row=mr, start_column=1, end_row=bottom, end_column=2)
+        log(f"  監督のA・B結合を保持 (A{mr}:B{bottom})")
+    # 印刷範囲: 一番下を凡例行に。右端は内容のある最終列。
+    if legend_row is not None:
+        last_col = 1
+        for r in range(1, legend_row + 1):
+            for c in range(1, (len(g3[r-1]) if r <= len(g3) else 0) + 1):
+                if not is_empty(g(g3, r, c)):
+                    last_col = max(last_col, c)
+        ws.print_area = f"A1:{get_column_letter(last_col)}{legend_row}"
+        log(f"  印刷範囲 A1:{get_column_letter(last_col)}{legend_row}")
 
 PANELS = [(2,25),(26,49),(50,73),(74,97)]
 RIGHT_COL = {1:"Y", 2:"AW", 3:"BU", 4:"CS"}
