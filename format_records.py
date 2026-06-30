@@ -241,11 +241,11 @@ def fmt_hyoki(ws, log):
                 need = max(need, jwidth(v))
         if need == 0:
             continue
-        need = need + 1
         cur = ws.column_dimensions[get_column_letter(c)].width or DEFAULT_W
-        if need > cur:
-            ws.column_dimensions[get_column_letter(c)].width = need
-            log(f"  幅 {get_column_letter(c)} {round(cur,1)}->{need} (広げのみ)")
+        # 明確に溢れている時だけ広げる(僅差=表示上切れていない範囲は触らない)。狭めるのは禁止。
+        if need > cur + 1:
+            ws.column_dimensions[get_column_letter(c)].width = round(need + 0.5, 2)
+            log(f"  幅 {get_column_letter(c)} {round(cur,1)}->{round(need+0.5,2)} (切れ防止で拡張)")
 
 def _row_set(ws, r, cmax=14):
     s = set()
