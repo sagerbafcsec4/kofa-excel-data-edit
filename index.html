@@ -52,6 +52,9 @@
   .dl{ display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 6px; }
   .dl a{ text-decoration:none; background:var(--soft); color:var(--p1); border:1px solid var(--dash); padding:9px 13px; border-radius:9px; font-size:.88rem; font-weight:600; }
   .dl a:hover{ background:#e9e2fa; }
+  .zipbtn{ display:inline-flex; align-items:center; gap:8px; text-decoration:none; background:var(--grad); color:#fff; font-weight:700; font-size:.98rem; padding:13px 22px; border-radius:10px; box-shadow:0 8px 18px -6px var(--ring); margin:4px 0 14px; }
+  .zipbtn:hover{ filter:brightness(1.06); }
+  .dl-label{ font-size:.82rem; color:var(--muted); margin:0 0 6px; font-weight:600; }
   details.detail{ margin-top:6px; }
   details.detail summary{ cursor:pointer; color:var(--muted); font-size:.84rem; list-style:none; }
   details.detail summary::-webkit-details-marker{ display:none; }
@@ -113,6 +116,7 @@
     <h2><span class="num">4</span>結果（ダウンロード）</h2>
     <div id="alert" class="alert"></div>
     <div id="summary" class="summary"></div>
+    <div id="zip"></div>
     <div id="dl" class="dl"></div>
     <details class="detail" id="detail"><summary>処理の詳細を表示</summary><div id="log"></div></details>
     <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記シートの「歳」列に年齢計算式を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
@@ -208,7 +212,7 @@ runBtn.onclick=async()=>{
   if(!ready) return;
   runBtn.disabled=true; runBtn.textContent="処理中…";
   logEl.textContent=""; $("dl").innerHTML=""; summaryEl.textContent=""; summaryEl.className="summary";
-  $("alert").className="alert"; $("alert").innerHTML="";
+  $("alert").className="alert"; $("alert").innerHTML=""; $("zip").innerHTML="";
   const blocked=[], errored=[];
   const delK=$("delK").checked;
   const md = ($("useDate").checked && $("matchDate").value) ? $("matchDate").value : null;
@@ -234,9 +238,12 @@ runBtn.onclick=async()=>{
     try{
       const zip=toU8(pyodide.globals.get("make_zip")());
       const a=document.createElement("a");
+      a.className="zipbtn";
       a.href=URL.createObjectURL(new Blob([zip],{type:"application/zip"}));
-      a.download=zipName(); a.textContent="⬇ ZIPでまとめてダウンロード"; a.style.fontWeight="700";
-      $("dl").appendChild(a);
+      a.download=zipName(); a.textContent="⬇ ZIPでまとめてダウンロード（"+okCount+"ファイル）";
+      $("zip").appendChild(a);
+      const lab=document.createElement("div"); lab.className="dl-label"; lab.textContent="個別にダウンロード：";
+      $("dl").prepend(lab);
     }catch(e){ log("ZIP作成エラー: "+e); }
   }
   const total=selected.length;
