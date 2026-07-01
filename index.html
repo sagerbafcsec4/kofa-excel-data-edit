@@ -151,7 +151,7 @@ def make_zip():
             z.writestr(nm, b)
     return buf.getvalue()
 `;
-let pyodide=null, ready=false, selected=[], savedDir=null;
+let pyodide=null, ready=false, selected=[];
 const $=id=>document.getElementById(id);
 const logEl=$("log"), statusEl=$("status"), runBtn=$("run"), summaryEl=$("summary"), detailEl=$("detail");
 function log(s){ logEl.textContent += s + "\n"; logEl.scrollTop=logEl.scrollHeight; }
@@ -248,58 +248,26 @@ runBtn.onclick=async()=>{
       $("dl").prepend(lab);
     }catch(e){ log("ZIP作成エラー: "+e); }
   }
-  // フォルダにまとめて保存(対応ブラウザ: Chrome/Edge)。セッション中はフォルダを記憶。
+  // フォルダにまとめて保存(対応ブラウザ: Chrome/Edge)
   if(okCount>=1 && window.showDirectoryPicker){
-    async function saveToDir(dir){
-      let saved=0;
-      for(const nm of outNames){
-        const fh=await dir.getFileHandle(nm, {create:true});
-        const w=await fh.createWritable();
-        await w.write(toU8(getOut(nm))); await w.close();
-        saved++;
-      }
-      return saved;
-    }
-    async function ensureDir(forceNew){
-      if(!forceNew && savedDir){
-        try{
-          let perm=await savedDir.queryPermission({mode:"readwrite"});
-          if(perm!=="granted") perm=await savedDir.requestPermission({mode:"readwrite"});
-          if(perm==="granted") return savedDir;
-        }catch(_){}
-      }
-      const d=await window.showDirectoryPicker();
-      savedDir=d; return d;
-    }
     const fb=document.createElement("button");
     fb.className="folderbtn";
-    fb.textContent = savedDir
-      ? ("📁 『"+savedDir.name+"』に保存（"+okCount+"ファイル）")
-      : ("📁 フォルダにまとめて保存（"+okCount+"ファイル）");
+    fb.textContent="📁 フォルダにまとめて保存（"+okCount+"ファイル）";
     fb.onclick=async()=>{
       try{
-        const dir=await ensureDir(false);
-        const n=await saveToDir(dir);
-        log("📁 『"+dir.name+"』へ "+n+" 件を保存しました");
-        alert(n+" 件を『"+dir.name+"』に保存しました。");
-        fb.textContent="📁 『"+dir.name+"』に保存（"+okCount+"ファイル）";
+        const dir=await window.showDirectoryPicker();
+        let saved=0;
+        for(const nm of outNames){
+          const fh=await dir.getFileHandle(nm, {create:true});
+          const w=await fh.createWritable();
+          await w.write(toU8(getOut(nm))); await w.close();
+          saved++;
+        }
+        log("📁 フォルダへ "+saved+" 件を保存しました");
+        alert(saved+" 件を選んだフォルダに保存しました。");
       }catch(e){ if(e && e.name!=="AbortError") log("フォルダ保存エラー: "+e); }
     };
     $("zip").appendChild(fb);
-    if(savedDir){
-      const ch=document.createElement("button");
-      ch.className="folderbtn"; ch.style.borderStyle="dashed";
-      ch.textContent="別のフォルダを選ぶ";
-      ch.onclick=async()=>{
-        try{
-          const dir=await ensureDir(true);
-          const n=await saveToDir(dir);
-          log("📁 『"+dir.name+"』へ "+n+" 件を保存しました");
-          alert(n+" 件を『"+dir.name+"』に保存しました。");
-        }catch(e){ if(e && e.name!=="AbortError") log("フォルダ保存エラー: "+e); }
-      };
-      $("zip").appendChild(ch);
-    }
   }
   const total=selected.length;
   if(blocked.length){
