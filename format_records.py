@@ -249,7 +249,26 @@ def fmt_hyoki(ws, log):
                 kg_col = c; break
         if kg_col:
             log(f"  体重列 {get_column_letter(kg_col)}('kg') -> 削除")
+            # 削除前に全列の実幅(範囲展開)を保存
+            pre_w = {}
+            for k, cd in list(ws.column_dimensions.items()):
+                if cd.width is None:
+                    continue
+                mn = cd.min or column_index_from_string(k)
+                mx = cd.max or mn
+                for x in range(mn, mx + 1):
+                    pre_w[x] = cd.width
+            old_maxc = maxc
             ws.delete_cols(kg_col, 1)
+            # 重要: openpyxl は列削除時に<col>(列幅)定義をずらさないため、
+            #   削除後の各列にデータ追従した幅を手動で再割当する(そうしないと
+            #   試/国籍などが右隣の幅を引き継いで広がる/狭まるバグになる)。
+            for k in list(ws.column_dimensions.keys()):
+                del ws.column_dimensions[k]
+            for c in range(1, old_maxc):      # 削除後の有効列数 = old_maxc - 1
+                src = c if c < kg_col else c + 1
+                if src in pre_w:
+                    ws.column_dimensions[get_column_letter(c)].width = pre_w[src]
             grid = read_grid(ws)
             maxc = max((len(r) for r in grid), default=0)
         else:
