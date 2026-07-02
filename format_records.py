@@ -21,6 +21,7 @@ OUT  = os.path.join(BASE, "_processed")
 LOGS = os.path.join(BASE, "_logs")
 DELETE_KEIREKI = None
 MATCH_DATE = None       # 試合日 "YYYY/MM/DD"。None(未指定)なら歳列は変更しない
+DELETE_WEIGHT = None    # True なら表記シートの体重(kg)列を削除
 
 def is_empty(v):
     return v is None or (isinstance(v, str) and v.strip() == "")
@@ -238,6 +239,20 @@ def fmt_formation(ws, wb, log):
 def fmt_hyoki(ws, log):
     grid = read_grid(ws)
     maxc = max((len(r) for r in grid), default=0)
+    # 体重(kg)列の削除(オプション)。行2ヘッダーが「kg」の列を1つ削除する。
+    if DELETE_WEIGHT:
+        kg_col = None
+        for c in range(1, maxc + 1):
+            h = g(grid, 2, c)
+            if isinstance(h, str) and h.strip() == "kg":
+                kg_col = c; break
+        if kg_col:
+            log(f"  体重列 {get_column_letter(kg_col)}('kg') -> 削除")
+            ws.delete_cols(kg_col, 1)
+            grid = read_grid(ws)
+            maxc = max((len(r) for r in grid), default=0)
+        else:
+            log("  体重列(kg) が見つからないため削除なし")
     last = last_data_row(grid, 1, maxc)
     age_col = bd_col = None
     for c in range(1, maxc + 1):

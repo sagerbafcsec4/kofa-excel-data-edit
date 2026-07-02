@@ -106,6 +106,8 @@
     <div class="hint">チェックして日付を選ぶと、その日時点の年齢が入ります。指定しない場合は「歳」列を変更しません。</div>
     <div class="setq" style="margin-top:18px;">経歴シートを削除しますか？</div>
     <label class="chk"><input id="delK" type="checkbox" checked> 削除する</label>
+    <div class="setq" style="margin-top:18px;">表記シートの「体重(kg)」列を削除しますか？</div>
+    <label class="chk"><input id="delW" type="checkbox"> 削除する</label>
   </div>
 
   <div class="card">
@@ -132,10 +134,11 @@ import io, zipfile
 _OUTPUTS = {}
 def reset_outputs():
     _OUTPUTS.clear()
-def process_one(name, data, delete_keireki, match_date=None):
-    global DELETE_KEIREKI, MATCH_DATE
+def process_one(name, data, delete_keireki, match_date=None, delete_weight=False):
+    global DELETE_KEIREKI, MATCH_DATE, DELETE_WEIGHT
     DELETE_KEIREKI = bool(delete_keireki)
     MATCH_DATE = match_date or None
+    DELETE_WEIGHT = bool(delete_weight)
     logs = []
     wb = openpyxl.load_workbook(io.BytesIO(bytes(data)))
     process_checked(wb, lambda s: logs.append(s))
@@ -217,6 +220,7 @@ runBtn.onclick=async()=>{
   $("alert").className="alert"; $("alert").innerHTML=""; $("zip").innerHTML="";
   const blocked=[], errored=[], outNames=[];
   const delK=$("delK").checked;
+  const delW=$("delW").checked;
   const md = ($("useDate").checked && $("matchDate").value) ? $("matchDate").value : null;
   pyodide.globals.get("reset_outputs")();
   const procOne=pyodide.globals.get("process_one");
@@ -227,7 +231,7 @@ runBtn.onclick=async()=>{
     try{
       const buf=new Uint8Array(await f.arrayBuffer());
       const outName=procName(f.name);
-      log(procOne(outName, buf, delK, md));
+      log(procOne(outName, buf, delK, md, delW));
       $("dl").appendChild(download(outName, toU8(getOut(outName))));
       outNames.push(outName); okCount++;
     }catch(e){
