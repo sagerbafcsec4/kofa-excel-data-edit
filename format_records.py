@@ -22,6 +22,7 @@ LOGS = os.path.join(BASE, "_logs")
 DELETE_KEIREKI = None
 MATCH_DATE = None       # 試合日 "YYYY/MM/DD"。None(未指定)なら歳列は変更しない
 DELETE_WEIGHT = None    # True なら表記シートの体重(kg)列を削除
+AGE_NOTE = None         # 「歳」列下の注記文言。None ならデフォルト文言を使用
 
 def is_empty(v):
     return v is None or (isinstance(v, str) and v.strip() == "")
@@ -269,8 +270,10 @@ def fmt_hyoki(ws, log):
                 ws.cell(r, age_col).value = f'=DATEDIF({bdL}{r}, "{date_str}", "Y")'
                 cnt_age += 1
         log(f"  歳列({get_column_letter(age_col)}) に {date_str} 基準の年齢式を {cnt_age}件 設定")
-        ws.cell(last + 1, age_col).value = "※年齢は試合当日の年齢"
-        log(f"  注記 {get_column_letter(age_col)}{last + 1} に『※年齢は試合当日の年齢』を設定")
+        note_text = str(AGE_NOTE if AGE_NOTE is not None else "※年齢は試合当日のもの").strip()
+        if note_text:
+            ws.cell(last + 1, age_col).value = note_text
+            log(f"  注記 {get_column_letter(age_col)}{last + 1} に『{note_text}』を設定")
     elif age_col:
         log("  歳列: 試合日未指定のため変更なし")
     # 列幅(表記のみ): 狭めるの禁止。広げるのは文字が切れる(内容>現在幅)時だけ。タイトル(行1)は除外。
