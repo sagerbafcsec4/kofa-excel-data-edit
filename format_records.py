@@ -127,7 +127,9 @@ def fmt_appearance(ws, log):
             mn = cd.min or column_index_from_string(k); mx = cd.max or mn
             for x in range(mn, mx + 1): truew[x] = cd.width
         curC = truew.get(3, 8.43)
-        target = round(need * 1.1) + 2
+        # 全角(日本語)は実表示が広いので余裕をもった係数で必要幅を見積もる。
+        # 狭めるの禁止=現在幅より必要幅が大きいときだけ広げる。
+        target = round(need * 1.2) + 4
         if target > curC + 1:
             ws.column_dimensions["C"].width = target
             log(f"  名前列C {round(curC,2)}->{target} (切れ防止で拡張)")
