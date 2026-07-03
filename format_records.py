@@ -319,18 +319,24 @@ def fmt_hyoki(ws, log):
         mx = cd.max or mn
         for ci in range(mn, mx + 1):
             truew[ci] = cd.width
+    # Excelのオートフィット(列境界ダブルクリック)相当で「広げるか」を判断する。
+    # 幅 ≈ セルごとの「文字幅(全角=2/半角=1) × フォントpt ÷ 11」の最大値。
+    # 値は元データ(grid)から取得する=歳列に入れた数式や注記の文字数に引きずられない。
     for c in range(1, maxc + 1):
-        need = 0
+        need = 0.0
         for r in range(2, last + 1):
             v = g(grid, r, c)
-            if not is_empty(v):
-                need = max(need, jwidth(v))
+            if is_empty(v):
+                continue
+            sz = ws.cell(r, c).font.size or 11
+            need = max(need, jwidth(v) * sz / 11.0)
         if need == 0:
             continue
         cur = truew.get(c, DEFAULT_W)
-        if need > cur + 1:   # 明確に溢れている列だけ広げる。狭めない。未変更列は触らない。
-            ws.column_dimensions[get_column_letter(c)].width = round(need + 0.5, 2)
-            log(f"  幅 {get_column_letter(c)} {round(cur,2)}->{round(need+0.5,2)} (切れ防止で拡張)")
+        target = min(round(need), 100)
+        if target > cur + 1:   # オートフィット必要幅が現在より大きい列だけ広げる。狭めない。
+            ws.column_dimensions[get_column_letter(c)].width = target
+            log(f"  幅 {get_column_letter(c)} {round(cur,2)}->{target} (オートフィット相当に拡張)")
 
 def _row_set(ws, r, cmax=14):
     s = set()
