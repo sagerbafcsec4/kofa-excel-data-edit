@@ -118,8 +118,18 @@ def fmt_appearance(ws, log):
     H = 8
     maxc = max((len(r) for r in grid), default=0)
     last = last_data_row(grid, 1, maxc)
-    # C列(名前): 狭めるの禁止。切れている時だけ広げる(範囲指定を展開して真の幅を取得)。
-    need = max((jwidth(g(grid, r, 3)) for r in range(1, last+1) if not is_empty(g(grid, r, 3))), default=0)
+    # C列(名前): Excelのオートフィット(列境界ダブルクリック)相当の幅にする。
+    # 狭めるの禁止=現在幅より必要幅が大きいときだけ広げる。
+    # オートフィット幅 ≈ セルごとの「文字幅(全角=2/半角=1) × フォントpt ÷ 11」の最大値。
+    #   (Excelの列幅単位はMDW≒7pxに基づき、この式で実測(例: 全角42×16pt→61)と一致する)
+    need = 0.0
+    for r in range(1, last + 1):
+        cell = ws.cell(r, 3)
+        v = cell.value
+        if is_empty(v):
+            continue
+        sz = cell.font.size or 11
+        need = max(need, jwidth(v) * sz / 11.0)
     if need:
         truew = {}
         for k, cd in list(ws.column_dimensions.items()):
@@ -127,12 +137,10 @@ def fmt_appearance(ws, log):
             mn = cd.min or column_index_from_string(k); mx = cd.max or mn
             for x in range(mn, mx + 1): truew[x] = cd.width
         curC = truew.get(3, 8.43)
-        # 全角(日本語)は実表示が広いので余裕をもった係数で必要幅を見積もる。
-        # 狭めるの禁止=現在幅より必要幅が大きいときだけ広げる。
-        target = round(need * 1.2) + 4
+        target = min(round(need), 100)
         if target > curC + 1:
             ws.column_dimensions["C"].width = target
-            log(f"  名前列C {round(curC,2)}->{target} (切れ防止で拡張)")
+            log(f"  名前列C {round(curC,2)}->{target} (オートフィット相当に拡張)")
     def match_empty_2row(r1, r2):
         for r in (r1, r2):
             for c in range(H, maxc + 1):
