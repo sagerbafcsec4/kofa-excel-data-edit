@@ -118,6 +118,15 @@ def fmt_appearance(ws, log):
     H = 8
     maxc = max((len(r) for r in grid), default=0)
     last = last_data_row(grid, 1, maxc)
+    # 左上のチーム名セル(結合 A1:C2 等)は列幅を広げず、必ず「縮小して全体を表示する」を有効化。
+    # (長いチーム名がはみ出て切れるのを防ぐ。値は変えない=書式のみ)
+    title = ws.cell(1, 1)
+    if not is_empty(title.value):
+        a = copy(title.alignment)
+        a.shrink_to_fit = True
+        a.wrap_text = False   # 縮小表示と折り返しは排他。折り返しは無効化する。
+        title.alignment = a
+        log(f"  チーム名 A1 に『縮小して全体を表示』を設定")
     # C列(名前): Excelのオートフィット(列境界ダブルクリック)相当の幅にする。
     # 狭めるの禁止=現在幅より必要幅が大きいときだけ広げる。
     # オートフィット幅 ≈ セルごとの「文字幅(全角=2/半角=1) × フォントpt ÷ 11」の最大値。
