@@ -6,6 +6,7 @@
 ★このファイルがロジックの唯一の正本。Webアプリ(index.html)は実行時にこれを読み込むため、
   ロジックの修正はこのファイルだけ直せばよい(index.html 側に書き写す必要はない)。
 """
+# redeploy: 2026-07-04 13:50
 import sys, os, glob
 from datetime import datetime
 import openpyxl
