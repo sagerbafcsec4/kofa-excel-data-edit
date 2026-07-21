@@ -205,16 +205,19 @@ def fmt_appearance(ws, log):
                 ws.unmerge_cells(str(m)); removed += 1
         if removed:
             log(f"  凡例(行{legend_row})の結合を {removed}件 解除")
-    # 監督(A列='監督')のA・B結合を保持: 行削除でA-B横結合が割れることがあるので再結合する
-    mr = next((r for r in range(1, len(g3) + 1)
-               if str(g(g3, r, 1)).strip() == "監督"), None)
-    if mr is not None:
-        bottom = mr + 1
+    # 監督・AC(A列ラベル)のA・B結合を保持/付与: 行削除でA-B横結合が割れることがあるので再結合する。
+    # ACも監督と同様にA列・B列を結合する。
+    for label in ("監督", "AC"):
+        lr = next((r for r in range(1, len(g3) + 1)
+                   if str(g(g3, r, 1)).strip() == label), None)
+        if lr is None:
+            continue
+        bottom = lr + 1
         for m in list(ws.merged_cells.ranges):
-            if m.min_col <= 2 and m.min_row <= mr <= m.max_row:
+            if m.min_col <= 2 and m.min_row <= lr <= m.max_row:
                 bottom = max(bottom, m.max_row); ws.unmerge_cells(str(m))
-        ws.merge_cells(start_row=mr, start_column=1, end_row=bottom, end_column=2)
-        log(f"  監督のA・B結合を保持 (A{mr}:B{bottom})")
+        ws.merge_cells(start_row=lr, start_column=1, end_row=bottom, end_column=2)
+        log(f"  {label}のA・B結合を保持 (A{lr}:B{bottom})")
     # 印刷範囲: 一番下を凡例行に。右端は内容のある最終列。
     if legend_row is not None:
         last_col = 1
