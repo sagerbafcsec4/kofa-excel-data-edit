@@ -110,6 +110,8 @@
     <label class="chk"><input id="delK" type="checkbox" checked> 削除する</label>
     <div class="setq" style="margin-top:18px;">表記シートの「体重(kg)」列を削除しますか？</div>
     <label class="chk"><input id="delW" type="checkbox"> 削除する</label>
+    <div class="setq" style="margin-top:18px;">表記だけをまとめたExcelも出力しますか？</div>
+    <label class="chk"><input id="sumHyoki" type="checkbox"> 出力する（アップした全ファイルの表記シートを1ブックに集約／タブ名＝各チーム名）</label>
   </div>
 
   <div class="card">
@@ -134,10 +136,12 @@
 const ADAPTER_PY = `
 import io, zipfile
 _OUTPUTS = {}
+_SUM_WB = None
 def reset_outputs():
-    _OUTPUTS.clear()
-def process_one(name, data, delete_keireki, match_date=None, delete_weight=False, age_note=None):
-    global DELETE_KEIREKI, MATCH_DATE, DELETE_WEIGHT, AGE_NOTE
+    global _SUM_WB
+    _OUTPUTS.clear(); _SUM_WB = None
+def process_one(name, data, delete_keireki, match_date=None, delete_weight=False, age_note=None, make_hyoki_summary=False):
+    global DELETE_KEIREKI, MATCH_DATE, DELETE_WEIGHT, AGE_NOTE, _SUM_WB
     DELETE_KEIREKI = bool(delete_keireki)
     MATCH_DATE = match_date or None
     DELETE_WEIGHT = bool(delete_weight)
@@ -147,7 +151,19 @@ def process_one(name, data, delete_keireki, match_date=None, delete_weight=False
     process_checked(wb, lambda s: logs.append(s))
     bio = io.BytesIO(); wb.save(bio)
     _OUTPUTS[name] = bio.getvalue()
+    if make_hyoki_summary:
+        if _SUM_WB is None:
+            _SUM_WB = openpyxl.Workbook(); _SUM_WB.remove(_SUM_WB.active)
+        t = add_hyoki_to_summary(wb, _SUM_WB)
+        if t:
+            logs.append("  \u8868\u8a18\u307e\u3068\u3081\u306b\u300e" + t + "\u300f\u3092\u8ffd\u52a0")
     return "\\n".join(logs)
+def finalize_hyoki_summary(name):
+    if _SUM_WB is None or len(_SUM_WB.worksheets) == 0:
+        return 0
+    bio = io.BytesIO(); _SUM_WB.save(bio)
+    _OUTPUTS[name] = bio.getvalue()
+    return len(_OUTPUTS[name])
 def get_output(name):
     return _OUTPUTS.get(name, b"")
 def make_zip():
@@ -225,6 +241,7 @@ runBtn.onclick=async()=>{
   const delK=$("delK").checked;
   const delW=$("delW").checked;
   const note = $("ageNote").value;
+  const sumHyoki = $("sumHyoki").checked;
   const md = ($("useDate").checked && $("matchDate").value) ? $("matchDate").value : null;
   pyodide.globals.get("reset_outputs")();
   const procOne=pyodide.globals.get("process_one");
@@ -235,7 +252,7 @@ runBtn.onclick=async()=>{
     try{
       const buf=new Uint8Array(await f.arrayBuffer());
       const outName=procName(f.name);
-      log(procOne(outName, buf, delK, md, delW, note));
+      log(procOne(outName, buf, delK, md, delW, note, sumHyoki));
       $("dl").appendChild(download(outName, toU8(getOut(outName))));
       outNames.push(outName); okCount++;
     }catch(e){
@@ -244,23 +261,38 @@ runBtn.onclick=async()=>{
       log("!! エラー: "+f.name+" / "+e);
     }
   }
-  if(okCount>1){
+  // 表記まとめExcel(オプション)
+  let sumName=null;
+  if(sumHyoki){
+    const d=new Date(), p=n=>String(n).padStart(2,"0");
+    const nm="表記まとめ_"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+".xlsx";
+    const len=pyodide.globals.get("finalize_hyoki_summary")(nm);
+    if(len>0){
+      sumName=nm; outNames.push(nm);
+      const a=download(nm, toU8(getOut(nm))); a.className="zipbtn"; a.textContent="⬇ "+nm+"（表記まとめ）";
+      $("zip").appendChild(a);
+    }else{
+      log("表記まとめ: 対象の表記シートが無かったため作成しませんでした");
+    }
+  }
+  const nOut = okCount + (sumName?1:0);
+  if(nOut>1){
     try{
       const zip=toU8(pyodide.globals.get("make_zip")());
       const a=document.createElement("a");
       a.className="zipbtn";
       a.href=URL.createObjectURL(new Blob([zip],{type:"application/zip"}));
-      a.download=zipName(); a.textContent="⬇ ZIPでまとめてダウンロード（"+okCount+"ファイル）";
+      a.download=zipName(); a.textContent="⬇ ZIPでまとめてダウンロード（"+nOut+"ファイル）";
       $("zip").appendChild(a);
       const lab=document.createElement("div"); lab.className="dl-label"; lab.textContent="個別にダウンロード：";
       $("dl").prepend(lab);
     }catch(e){ log("ZIP作成エラー: "+e); }
   }
   // フォルダにまとめて保存(対応ブラウザ: Chrome/Edge)
-  if(okCount>=1 && window.showDirectoryPicker){
+  if(outNames.length>=1 && window.showDirectoryPicker){
     const fb=document.createElement("button");
     fb.className="folderbtn";
-    fb.textContent="📁 フォルダにまとめて保存（"+okCount+"ファイル）";
+    fb.textContent="📁 フォルダにまとめて保存（"+outNames.length+"ファイル）";
     fb.onclick=async()=>{
       try{
         const dir=await window.showDirectoryPicker();

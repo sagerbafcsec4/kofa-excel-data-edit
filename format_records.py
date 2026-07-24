@@ -14,6 +14,24 @@ from openpyxl.utils import get_column_letter, column_index_from_string
 from copy import copy
 from collections import Counter
 
+# --- 全角カタカナ→半角カタカナ 変換(表記まとめのタブ名用) ---
+_HALF = {}
+_bf = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン"
+_bh = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜｦﾝ"
+for _f, _h in zip(_bf, _bh):
+    _HALF[_f] = _h
+for _f, _h in zip("ァィゥェォッャュョ", "ｧｨｩｪｫｯｬｭｮ"):
+    _HALF[_f] = _h
+for _f, _b in zip("ガギグゲゴザジズゼゾダヂヅデドバビブベボ", "カキクケコサシスセソタチツテトハヒフヘホ"):
+    _HALF[_f] = _HALF[_b] + "ﾞ"
+for _f, _b in zip("パピプペポ", "ハヒフヘホ"):
+    _HALF[_f] = _HALF[_b] + "ﾟ"
+_HALF["ヴ"] = _HALF["ウ"] + "ﾞ"
+_HALF["ー"] = "ｰ"; _HALF["・"] = "･"; _HALF["　"] = " "
+
+def to_half_kana(s):
+    return "".join(_HALF.get(ch, ch) for ch in str(s))
+
 try:
     BASE = os.path.dirname(os.path.abspath(__file__))
 except NameError:
@@ -381,6 +399,70 @@ def is_keireki_sheet(ws):
 
 def is_formation_sheet(ws):
     return 90 <= ws.max_column <= 110
+
+def hyoki_tab_name(ws):
+    """表記シートA1のチーム名(「(」の前)を取り出し、カタカナは半角化してタブ名にする。"""
+    a1 = ws.cell(1, 1).value
+    name = str(a1) if a1 not in (None, "") else ""
+    idx = len(name)
+    for br in ("（", "("):
+        p = name.find(br)
+        if p != -1:
+            idx = min(idx, p)
+    name = to_half_kana(name[:idx].strip())
+    for bad in ":\\/?*[]":
+        name = name.replace(bad, "")
+    name = name.strip()[:31]
+    return name or "表記"
+
+def copy_ws_into(src, dst_wb, title):
+    """src ワークシートを dst_wb に title で複製(値+主要書式+列幅+結合を保持)。"""
+    dst = dst_wb.create_sheet(title=title)
+    sw = {}
+    for k, cd in src.column_dimensions.items():
+        if cd.width is None:
+            continue
+        mn = cd.min or column_index_from_string(k)
+        mx = cd.max or mn
+        for x in range(mn, mx + 1):
+            sw[x] = cd.width
+    for c, w in sw.items():
+        dst.column_dimensions[get_column_letter(c)].width = w
+    for idx, rd in src.row_dimensions.items():
+        if rd.height is not None:
+            dst.row_dimensions[idx].height = rd.height
+    for row in src.iter_rows():
+        for cell in row:
+            if cell.value is None and not cell.has_style:
+                continue
+            nc = dst.cell(row=cell.row, column=cell.column, value=cell.value)
+            if cell.has_style:
+                nc.font = copy(cell.font)
+                nc.fill = copy(cell.fill)
+                nc.border = copy(cell.border)
+                nc.alignment = copy(cell.alignment)
+                nc.number_format = cell.number_format
+                nc.protection = copy(cell.protection)
+    for mc in list(src.merged_cells.ranges):
+        dst.merge_cells(str(mc))
+    if src.print_area:
+        dst.print_area = src.print_area
+    return dst
+
+def add_hyoki_to_summary(wb, dst_wb):
+    """処理済み wb の表記シートを、まとめブック dst_wb に1タブ追加する。タブ名重複は連番。"""
+    ws = next((w for w in wb.worksheets if is_hyoki_sheet(w)), None)
+    if ws is None:
+        return None
+    base = hyoki_tab_name(ws)
+    title = base
+    i = 2
+    while title in dst_wb.sheetnames:
+        suffix = "_" + str(i)
+        title = base[:31 - len(suffix)] + suffix
+        i += 1
+    copy_ws_into(ws, dst_wb, title)
+    return title
 
 def process_wb(wb, log):
     for ws in list(wb.worksheets):
