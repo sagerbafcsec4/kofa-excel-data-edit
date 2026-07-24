@@ -140,7 +140,7 @@ _SUM_WB = None
 def reset_outputs():
     global _SUM_WB
     _OUTPUTS.clear(); _SUM_WB = None
-def process_one(name, data, delete_keireki, match_date=None, delete_weight=False, age_note=None, make_hyoki_summary=False):
+def process_one(name, data, delete_keireki, match_date=None, delete_weight=False, age_note=None, make_hyoki_summary=False, tab_code=None):
     global DELETE_KEIREKI, MATCH_DATE, DELETE_WEIGHT, AGE_NOTE, _SUM_WB
     DELETE_KEIREKI = bool(delete_keireki)
     MATCH_DATE = match_date or None
@@ -154,7 +154,7 @@ def process_one(name, data, delete_keireki, match_date=None, delete_weight=False
     if make_hyoki_summary:
         if _SUM_WB is None:
             _SUM_WB = openpyxl.Workbook(); _SUM_WB.remove(_SUM_WB.active)
-        t = add_hyoki_to_summary(wb, _SUM_WB)
+        t = add_hyoki_to_summary(wb, _SUM_WB, tab_code)
         if t:
             logs.append("  \u8868\u8a18\u307e\u3068\u3081\u306b\u300e" + t + "\u300f\u3092\u8ffd\u52a0")
     return "\\n".join(logs)
@@ -252,7 +252,8 @@ runBtn.onclick=async()=>{
     try{
       const buf=new Uint8Array(await f.arrayBuffer());
       const outName=procName(f.name);
-      log(procOne(outName, buf, delK, md, delW, note, sumHyoki));
+      const tabCode = f.name.replace(/\.xlsx$/i, "").split("_")[0];
+      log(procOne(outName, buf, delK, md, delW, note, sumHyoki, tabCode));
       $("dl").appendChild(download(outName, toU8(getOut(outName))));
       outNames.push(outName); okCount++;
     }catch(e){

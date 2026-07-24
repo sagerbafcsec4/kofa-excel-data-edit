@@ -400,6 +400,14 @@ def is_keireki_sheet(ws):
 def is_formation_sheet(ws):
     return 90 <= ws.max_column <= 110
 
+def _clean_tab(name, fallback="表記"):
+    """Excelタブ名として使える形に整える(禁則文字除去・前後空白除去・31字まで)。"""
+    name = str(name)
+    for bad in ":\\/?*[]":
+        name = name.replace(bad, "")
+    name = name.strip()[:31]
+    return name or fallback
+
 def hyoki_tab_name(ws):
     """表記シートA1のチーム名(「(」の前)を取り出し、カタカナは半角化してタブ名にする。"""
     a1 = ws.cell(1, 1).value
@@ -409,11 +417,7 @@ def hyoki_tab_name(ws):
         p = name.find(br)
         if p != -1:
             idx = min(idx, p)
-    name = to_half_kana(name[:idx].strip())
-    for bad in ":\\/?*[]":
-        name = name.replace(bad, "")
-    name = name.strip()[:31]
-    return name or "表記"
+    return _clean_tab(to_half_kana(name[:idx].strip()))
 
 def copy_ws_into(src, dst_wb, title):
     """src ワークシートを dst_wb に title で複製(値+主要書式+列幅+結合を保持)。"""
@@ -449,12 +453,13 @@ def copy_ws_into(src, dst_wb, title):
         dst.print_area = src.print_area
     return dst
 
-def add_hyoki_to_summary(wb, dst_wb):
-    """処理済み wb の表記シートを、まとめブック dst_wb に1タブ追加する。タブ名重複は連番。"""
+def add_hyoki_to_summary(wb, dst_wb, tab_name=None):
+    """処理済み wb の表記シートを、まとめブック dst_wb に1タブ追加する。タブ名重複は連番。
+    tab_name(ファイル名コード等)が渡ればそれを、無ければA1のチーム名を使う。"""
     ws = next((w for w in wb.worksheets if is_hyoki_sheet(w)), None)
     if ws is None:
         return None
-    base = hyoki_tab_name(ws)
+    base = _clean_tab(tab_name) if (tab_name and str(tab_name).strip()) else hyoki_tab_name(ws)
     title = base
     i = 2
     while title in dst_wb.sheetnames:
