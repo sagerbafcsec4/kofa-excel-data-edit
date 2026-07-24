@@ -369,6 +369,49 @@ def fmt_hyoki(ws, log):
             ws.column_dimensions[get_column_letter(c)].width = target
             log(f"  幅 {get_column_letter(c)} {round(cur,2)}->{target} (オートフィット相当に拡張)")
 
+def fmt_keireki(ws, log):
+    """経歴シートの整形(削除しない場合)。値は変更せず、書式/幅/高さ/印刷のみ。
+    - 印刷 A4->A3(用紙のみ)
+    - A1: フォント15・太字
+    - 枠内(2行目〜監督行 × A〜G列, 空セル含む): フォント12 + 縮小&折り返し 両方ON
+    - 行の高さ 1行目〜監督行 = 30
+    - 列幅 A5 B5 C50 D5 E6 F50 G200
+    監督行が無ければ最終データ行(A〜G)を下端にする。
+    """
+    grid = read_grid(ws)
+    # 監督行(A列=='監督')、無ければ最終データ行
+    mr = next((r for r in range(1, len(grid) + 1)
+               if str(g(grid, r, 1)).strip() == "監督"), None)
+    if mr is None:
+        mr = last_data_row(grid, 1, 7)
+    if mr < 2:
+        mr = 2
+    # 印刷: A4(9)->A3(8) 用紙サイズのみ
+    ws.page_setup.paperSize = 8
+    log("  用紙 A4->A3")
+    # A1: 15pt 太字
+    a1 = ws.cell(1, 1)
+    f = copy(a1.font); f.size = 15; f.bold = True; a1.font = f
+    log("  A1 フォント15・太字")
+    # 枠内(2..mr × A..G): フォント12 + 縮小&折り返し
+    for r in range(2, mr + 1):
+        for c in range(1, 8):
+            cell = ws.cell(r, c)
+            ff = copy(cell.font); ff.size = 12; cell.font = ff
+            aa = copy(cell.alignment)
+            aa.shrink_to_fit = True
+            aa.wrap_text = True
+            cell.alignment = aa
+    log(f"  枠内(2〜{mr}行 × A〜G列) フォント12＋縮小＋折り返し")
+    # 行の高さ 1..mr = 30
+    for r in range(1, mr + 1):
+        ws.row_dimensions[r].height = 30
+    log(f"  行の高さ 1〜{mr} = 30")
+    # 列幅
+    for col, w in {"A": 5, "B": 5, "C": 50, "D": 5, "E": 6, "F": 50, "G": 200}.items():
+        ws.column_dimensions[col].width = w
+    log("  列幅 A5 B5 C50 D5 E6 F50 G200")
+
 def _row_set(ws, r, cmax=14):
     s = set()
     for c in range(1, cmax + 1):
@@ -482,7 +525,7 @@ def process_wb(wb, log):
             if DELETE_KEIREKI:
                 log(f"[§E 経歴] {t} -> 削除"); wb.remove(ws)
             else:
-                log(f"[§E 経歴] {t} -> 保持")
+                log(f"[§E 経歴] {t} -> 整形保持"); fmt_keireki(ws, log)
         elif is_formation_sheet(ws):
             log(f"[§C フォーメーション] {t}"); fmt_formation(ws, wb, log)
         else:
