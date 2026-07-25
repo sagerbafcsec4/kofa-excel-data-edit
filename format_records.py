@@ -411,6 +411,40 @@ def fmt_keireki(ws, log):
     for col, w in {"A": 5, "B": 5, "C": 50, "D": 5, "E": 6, "F": 50, "G": 200}.items():
         ws.column_dimensions[col].width = w
     log("  列幅 A5 B5 C50 D5 E6 F50 G200")
+    # 歳(D)列に「その日の年齢」式を入れる(試合日指定時のみ)。
+    # 経歴には生年月日が無いため、表記シートの生年月日を「フルネーム」で参照して計算する。
+    # ※値を変更してよいのはこの歳列だけ(安全チェックでも歳列のみ照合除外)。
+    if MATCH_DATE:
+        kf = kage = None
+        for c in range(1, 8):
+            h = g(grid, 2, c)
+            h = h.strip() if isinstance(h, str) else h
+            if h == "フルネーム": kf = c
+            elif h == "歳": kage = c
+        hy = next((w for w in ws.parent.worksheets if is_hyoki_sheet(w)), None)
+        hf = hbd = None
+        if hy is not None:
+            for c in range(1, (hy.max_column or 0) + 1):
+                v = hy.cell(2, c).value
+                v = v.strip() if isinstance(v, str) else v
+                if v == "フルネーム": hf = c
+                elif v == "生年月日": hbd = c
+        if kf and kage and hy is not None and hf and hbd:
+            date_str = MATCH_DATE.replace("-", "/")
+            sref = "'" + str(hy.title).replace("'", "''") + "'"
+            kfL = get_column_letter(kf); hfL = get_column_letter(hf); hbdL = get_column_letter(hbd)
+            cnt = 0
+            for r in range(3, mr + 1):
+                if is_empty(g(grid, r, kage)) or is_empty(g(grid, r, kf)):
+                    continue
+                ws.cell(r, kage).value = (
+                    f'=IFERROR(DATEDIF(INDEX({sref}!{hbdL}:{hbdL},'
+                    f'MATCH({kfL}{r},{sref}!{hfL}:{hfL},0)),"{date_str}","Y"),"")'
+                )
+                cnt += 1
+            log(f"  歳列({get_column_letter(kage)}) に {date_str} 基準の年齢式を {cnt}件 設定(表記の生年月日を氏名参照)")
+        else:
+            log("  歳列: 表記/フルネーム/生年月日 列が特定できず年齢式は未設定")
 
 def _row_set(ws, r, cmax=14):
     s = set()
@@ -533,7 +567,8 @@ def process_wb(wb, log):
     return wb
 
 def _exempt_cols(ws):
-    if MATCH_DATE and is_hyoki_sheet(ws):
+    # 試合日指定時、値変更を許可する列=表記/経歴シートの「歳」列のみ。
+    if MATCH_DATE and (is_hyoki_sheet(ws) or is_keireki_sheet(ws)):
         for c in range(1, (ws.max_column or 0) + 1):
             v = ws.cell(2, c).value
             if isinstance(v, str) and v.strip() == "歳":
