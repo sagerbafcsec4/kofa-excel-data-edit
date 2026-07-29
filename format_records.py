@@ -11,6 +11,7 @@ import sys, os, glob
 from datetime import datetime
 import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string
+from openpyxl.styles import PatternFill
 from copy import copy
 from collections import Counter
 
@@ -73,6 +74,16 @@ def age_on(bd_text, match_date):
         y2, m2, d2 = [int(x) for x in match_date.split("-")]
         age = y2 - yy - (1 if (m2, d2) < (mm, dd) else 0)
         return age if 0 <= age <= 120 else None
+    except Exception:
+        return None
+
+def bday_md(bd_text):
+    """生年月日文字列から (月, 日) を返す。取れなければ None。"""
+    try:
+        p = str(bd_text).strip().replace("-", "/").split("/")
+        if len(p) != 3:
+            return None
+        return (int(p[1]), int(p[2]))
     except Exception:
         return None
 
@@ -362,7 +373,9 @@ def fmt_hyoki(ws, log):
         elif h == "生年月日": bd_col = c
     if MATCH_DATE and age_col and bd_col:
         date_str = MATCH_DATE.replace("-", "/")
-        cnt_age = 0
+        _my, _mm, _md = [int(x) for x in MATCH_DATE.split("-")]
+        yellow = PatternFill(patternType="solid", fgColor="FFFFFF00")
+        cnt_age = 0; cnt_bday = 0
         for r in range(3, last + 1):
             bd_v = g(grid, r, bd_col)
             if is_empty(bd_v):
@@ -371,7 +384,12 @@ def fmt_hyoki(ws, log):
             if a is not None:
                 ws.cell(r, age_col).value = a   # 式ではなく計算済みの年齢(数値)を入れる
                 cnt_age += 1
-        log(f"  歳列({get_column_letter(age_col)}) に {date_str} 時点の年齢(数値)を {cnt_age}件 設定")
+            # 試合日が誕生日(月日が一致)なら 歳・生年月日 を黄色で塗る
+            if bday_md(bd_v) == (_mm, _md):
+                ws.cell(r, age_col).fill = yellow
+                ws.cell(r, bd_col).fill = yellow
+                cnt_bday += 1
+        log(f"  歳列({get_column_letter(age_col)}) に {date_str} 時点の年齢(数値)を {cnt_age}件 設定 / 誕生日ハイライト {cnt_bday}件")
         note_text = str(AGE_NOTE if AGE_NOTE is not None else "※年齢は試合当日のもの").strip()
         if note_text:
             ws.cell(last + 1, age_col).value = note_text
