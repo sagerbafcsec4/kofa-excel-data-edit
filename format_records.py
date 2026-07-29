@@ -52,6 +52,14 @@ def jwidth(text):
         w += 2 if ord(ch) > 0x2E7F else 1
     return w
 
+import unicodedata
+def dispwidth(text):
+    """実表示幅(半角=1/全角=2)。半角カタカナ等を正しく1と数える(jwidthは2に数える)。"""
+    w = 0
+    for ch in str(text):
+        w += 2 if unicodedata.east_asian_width(ch) in ("F", "W") else 1
+    return w
+
 def set_font_size(cell, size):
     f = copy(cell.font); f.size = size; cell.font = f
 
@@ -407,6 +415,26 @@ def fmt_keireki(ws, log):
     for r in range(1, mr + 1):
         ws.row_dimensions[r].height = 30
     log(f"  行の高さ 1〜{mr} = 30")
+    # 経歴(G列)が長く折り返して3行以上になる行は、行の高さを 30->50 にする。
+    # 1行あたり容量(表示幅) = G幅(200) * 11 / フォント(12) ≒ 183。3行以上=表示幅>約367。
+    import math
+    kei_col = None
+    for c in range(1, 8):
+        h = g(grid, 2, c)
+        if isinstance(h, str) and h.strip() == "経歴":
+            kei_col = c
+    if kei_col:
+        cap = 200 * 11 / 12.0
+        n50 = 0
+        for r in range(3, mr + 1):
+            v = g(grid, r, kei_col)
+            if is_empty(v):
+                continue
+            lines = math.ceil(dispwidth(v) / cap)
+            if lines >= 3:
+                ws.row_dimensions[r].height = 50
+                n50 += 1
+        log(f"  経歴が3行以上の行を 行高50 に: {n50}件")
     # 列幅
     for col, w in {"A": 5, "B": 5, "C": 50, "D": 5, "E": 6, "F": 50, "G": 200}.items():
         ws.column_dimensions[col].width = w
@@ -499,6 +527,14 @@ def hyoki_tab_name(ws):
 def copy_ws_into(src, dst_wb, title):
     """src ワークシートを dst_wb に title で複製(値+主要書式+列幅+結合を保持)。"""
     dst = dst_wb.create_sheet(title=title)
+    # シート既定書式(既定列幅/既定行高)を引き継ぐ。
+    # (既定列幅を引き継がないと、明示幅の無い列が標準8.43に変わってしまう)
+    try:
+        dst.sheet_format.defaultColWidth = src.sheet_format.defaultColWidth
+        dst.sheet_format.baseColWidth = src.sheet_format.baseColWidth
+        dst.sheet_format.defaultRowHeight = src.sheet_format.defaultRowHeight
+    except Exception:
+        pass
     sw = {}
     for k, cd in src.column_dimensions.items():
         if cd.width is None:
