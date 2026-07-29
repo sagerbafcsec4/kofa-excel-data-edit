@@ -60,6 +60,22 @@ def dispwidth(text):
         w += 2 if unicodedata.east_asian_width(ch) in ("F", "W") else 1
     return w
 
+def age_on(bd_text, match_date):
+    """生年月日文字列("yy/mm/dd"や"yyyy/mm/dd") と 試合日"YYYY-MM-DD" から満年齢(整数)を返す。
+    2桁年は 00-29→2000年代 / 30-99→1900年代。計算できなければ None。"""
+    try:
+        parts = str(bd_text).strip().replace("-", "/").split("/")
+        if len(parts) != 3:
+            return None
+        yy, mm, dd = int(parts[0]), int(parts[1]), int(parts[2])
+        if yy < 100:
+            yy = 2000 + yy if yy < 30 else 1900 + yy
+        y2, m2, d2 = [int(x) for x in match_date.split("-")]
+        age = y2 - yy - (1 if (m2, d2) < (mm, dd) else 0)
+        return age if 0 <= age <= 120 else None
+    except Exception:
+        return None
+
 def set_font_size(cell, size):
     f = copy(cell.font); f.size = size; cell.font = f
 
@@ -345,23 +361,17 @@ def fmt_hyoki(ws, log):
         if h == "歳": age_col = c
         elif h == "生年月日": bd_col = c
     if MATCH_DATE and age_col and bd_col:
-        bdL = get_column_letter(bd_col)
         date_str = MATCH_DATE.replace("-", "/")
-        _yy, _mm, _dd = MATCH_DATE.split("-")
-        end_date = f'DATE({int(_yy)},{int(_mm)},{int(_dd)})'
         cnt_age = 0
         for r in range(3, last + 1):
-            if not is_empty(g(grid, r, bd_col)):
-                # 生年月日は"yy/mm/dd"の文字列。DATEDIFは文字列日付を扱えないので、
-                # 開始日も終了日も DATE() で日付シリアルに組み立てる。
-                # 2桁年は 00-29→2000年代 / 30-99→1900年代。
-                ws.cell(r, age_col).value = (
-                    f'=IFERROR(DATEDIF(DATE('
-                    f'IF(VALUE(LEFT({bdL}{r},2))<30,2000,1900)+VALUE(LEFT({bdL}{r},2)),'
-                    f'VALUE(MID({bdL}{r},4,2)),VALUE(MID({bdL}{r},7,2))),{end_date},"Y"),"")'
-                )
+            bd_v = g(grid, r, bd_col)
+            if is_empty(bd_v):
+                continue
+            a = age_on(bd_v, MATCH_DATE)
+            if a is not None:
+                ws.cell(r, age_col).value = a   # 式ではなく計算済みの年齢(数値)を入れる
                 cnt_age += 1
-        log(f"  歳列({get_column_letter(age_col)}) に {date_str} 基準の年齢式を {cnt_age}件 設定")
+        log(f"  歳列({get_column_letter(age_col)}) に {date_str} 時点の年齢(数値)を {cnt_age}件 設定")
         note_text = str(AGE_NOTE if AGE_NOTE is not None else "※年齢は試合当日のもの").strip()
         if note_text:
             ws.cell(last + 1, age_col).value = note_text
@@ -474,29 +484,32 @@ def fmt_keireki(ws, log):
             if h == "フルネーム": kf = c
             elif h == "歳": kage = c
         hy = next((w for w in ws.parent.worksheets if is_hyoki_sheet(w)), None)
-        hf = hage = None
+        hf = hbd = None
         if hy is not None:
             for c in range(1, (hy.max_column or 0) + 1):
                 v = hy.cell(2, c).value
                 v = v.strip() if isinstance(v, str) else v
                 if v == "フルネーム": hf = c
-                elif v == "歳": hage = c
-        if kf and kage and hy is not None and hf and hage:
-            sref = "'" + str(hy.title).replace("'", "''") + "'"
-            kfL = get_column_letter(kf); hfL = get_column_letter(hf); hageL = get_column_letter(hage)
+                elif v == "生年月日": hbd = c
+        if kf and kage and hy is not None and hf and hbd:
+            # 表記の 氏名->生年月日 マップを作り、経歴の歳に計算済み年齢(数値)を入れる
+            name2bd = {}
+            for r in range(3, (hy.max_row or 0) + 1):
+                nm = hy.cell(r, hf).value
+                bdv = hy.cell(r, hbd).value
+                if nm not in (None, "") and bdv not in (None, ""):
+                    name2bd[str(nm).strip()] = bdv
             cnt = 0
             for r in range(3, mr + 1):
                 if is_empty(g(grid, r, kage)) or is_empty(g(grid, r, kf)):
                     continue
-                # 経歴の歳は、表記シートの「歳」列(計算済み年齢)を氏名で参照する
-                ws.cell(r, kage).value = (
-                    f'=IFERROR(INDEX({sref}!{hageL}:{hageL},'
-                    f'MATCH({kfL}{r},{sref}!{hfL}:{hfL},0)),"")'
-                )
-                cnt += 1
-            log(f"  歳列({get_column_letter(kage)}) に 表記の歳(氏名参照)を {cnt}件 設定")
+                a = age_on(name2bd.get(str(g(grid, r, kf)).strip()), MATCH_DATE)
+                if a is not None:
+                    ws.cell(r, kage).value = a
+                    cnt += 1
+            log(f"  歳列({get_column_letter(kage)}) に 年齢(数値)を {cnt}件 設定")
         else:
-            log("  歳列: 表記/フルネーム/歳 列が特定できず年齢は未設定")
+            log("  歳列: 表記/フルネーム/生年月日 列が特定できず年齢は未設定")
 
 def _row_set(ws, r, cmax=14):
     s = set()
