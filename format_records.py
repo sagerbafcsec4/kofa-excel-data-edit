@@ -192,6 +192,11 @@ def fmt_appearance(ws, log):
             if is_empty(g(grid, r, 2)) and match_empty_2row(r, r+1):
                 del_players.append((r, g(grid, r, 3)))
             r += 2
+        elif pos_s == "AC":
+            # ACは記録が無ければ削除、あれば残す(監督は決して削除しない)
+            if match_empty_2row(r, r+1):
+                del_players.append((r, g(grid, r, 3)))
+            r += 2
         else:
             r += 1
     for r, name in sorted(del_players, reverse=True):
@@ -231,19 +236,29 @@ def fmt_appearance(ws, log):
                 ws.unmerge_cells(str(m)); removed += 1
         if removed:
             log(f"  凡例(行{legend_row})の結合を {removed}件 解除")
-    # 監督・AC(A列ラベル)のA・B結合を保持/付与: 行削除でA-B横結合が割れることがあるので再結合する。
-    # ACも監督と同様にA列・B列を結合する。
-    for label in ("監督", "AC"):
-        lr = next((r for r in range(1, len(g3) + 1)
-                   if str(g(g3, r, 1)).strip() == label), None)
-        if lr is None:
-            continue
+    # 監督・AC(全員)・退団(A列セルが黒ベタ塗り)の選手 の A・B結合を保持/付与。
+    def _ab_merge(lr):
         bottom = lr + 1
         for m in list(ws.merged_cells.ranges):
             if m.min_col <= 2 and m.min_row <= lr <= m.max_row:
                 bottom = max(bottom, m.max_row); ws.unmerge_cells(str(m))
         ws.merge_cells(start_row=lr, start_column=1, end_row=bottom, end_column=2)
-        log(f"  {label}のA・B結合を保持 (A{lr}:B{bottom})")
+        return bottom
+    merge_rows = set()
+    for r in range(1, len(g3) + 1):
+        if str(g(g3, r, 1)).strip() in ("監督", "AC"):
+            merge_rows.add(r)
+    # 退団選手(A列セルが黒ベタ塗り)の位置行も対象
+    for r in range(1, ws.max_row + 1):
+        fl = ws.cell(r, 1).fill
+        if fl is not None and fl.patternType == "solid":
+            rgb = fl.fgColor.rgb if fl.fgColor is not None else None
+            if isinstance(rgb, str) and rgb.upper().endswith("000000"):
+                if str(g(g3, r, 1)).strip() in PLAY_POS:
+                    merge_rows.add(r)
+    for lr in sorted(merge_rows):
+        b = _ab_merge(lr)
+        log(f"  A・B結合 (A{lr}:B{b})")
     # 印刷範囲: 一番下を凡例行に。右端は内容のある最終列。
     if legend_row is not None:
         last_col = 1
@@ -335,7 +350,13 @@ def fmt_hyoki(ws, log):
         cnt_age = 0
         for r in range(3, last + 1):
             if not is_empty(g(grid, r, bd_col)):
-                ws.cell(r, age_col).value = f'=DATEDIF({bdL}{r}, "{date_str}", "Y")'
+                # 生年月日は"yy/mm/dd"の文字列。DATEは文字列日付を扱えないので
+                # LEFT/MIDで年月日を取り出し、2桁年(00-29→2000s,30-99→1900s)で日付を組み立てる。
+                ws.cell(r, age_col).value = (
+                    f'=IFERROR(DATEDIF(DATE('
+                    f'IF(VALUE(LEFT({bdL}{r},2))<30,2000,1900)+VALUE(LEFT({bdL}{r},2)),'
+                    f'VALUE(MID({bdL}{r},4,2)),VALUE(MID({bdL}{r},7,2))),"{date_str}","Y"),"")'
+                )
                 cnt_age += 1
         log(f"  歳列({get_column_letter(age_col)}) に {date_str} 基準の年齢式を {cnt_age}件 設定")
         note_text = str(AGE_NOTE if AGE_NOTE is not None else "※年齢は試合当日のもの").strip()
@@ -450,29 +471,29 @@ def fmt_keireki(ws, log):
             if h == "フルネーム": kf = c
             elif h == "歳": kage = c
         hy = next((w for w in ws.parent.worksheets if is_hyoki_sheet(w)), None)
-        hf = hbd = None
+        hf = hage = None
         if hy is not None:
             for c in range(1, (hy.max_column or 0) + 1):
                 v = hy.cell(2, c).value
                 v = v.strip() if isinstance(v, str) else v
                 if v == "フルネーム": hf = c
-                elif v == "生年月日": hbd = c
-        if kf and kage and hy is not None and hf and hbd:
-            date_str = MATCH_DATE.replace("-", "/")
+                elif v == "歳": hage = c
+        if kf and kage and hy is not None and hf and hage:
             sref = "'" + str(hy.title).replace("'", "''") + "'"
-            kfL = get_column_letter(kf); hfL = get_column_letter(hf); hbdL = get_column_letter(hbd)
+            kfL = get_column_letter(kf); hfL = get_column_letter(hf); hageL = get_column_letter(hage)
             cnt = 0
             for r in range(3, mr + 1):
                 if is_empty(g(grid, r, kage)) or is_empty(g(grid, r, kf)):
                     continue
+                # 経歴の歳は、表記シートの「歳」列(計算済み年齢)を氏名で参照する
                 ws.cell(r, kage).value = (
-                    f'=IFERROR(DATEDIF(INDEX({sref}!{hbdL}:{hbdL},'
-                    f'MATCH({kfL}{r},{sref}!{hfL}:{hfL},0)),"{date_str}","Y"),"")'
+                    f'=IFERROR(INDEX({sref}!{hageL}:{hageL},'
+                    f'MATCH({kfL}{r},{sref}!{hfL}:{hfL},0)),"")'
                 )
                 cnt += 1
-            log(f"  歳列({get_column_letter(kage)}) に {date_str} 基準の年齢式を {cnt}件 設定(表記の生年月日を氏名参照)")
+            log(f"  歳列({get_column_letter(kage)}) に 表記の歳(氏名参照)を {cnt}件 設定")
         else:
-            log("  歳列: 表記/フルネーム/生年月日 列が特定できず年齢式は未設定")
+            log("  歳列: 表記/フルネーム/歳 列が特定できず年齢は未設定")
 
 def _row_set(ws, r, cmax=14):
     s = set()
