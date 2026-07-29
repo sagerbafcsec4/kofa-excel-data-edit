@@ -347,15 +347,18 @@ def fmt_hyoki(ws, log):
     if MATCH_DATE and age_col and bd_col:
         bdL = get_column_letter(bd_col)
         date_str = MATCH_DATE.replace("-", "/")
+        _yy, _mm, _dd = MATCH_DATE.split("-")
+        end_date = f'DATE({int(_yy)},{int(_mm)},{int(_dd)})'
         cnt_age = 0
         for r in range(3, last + 1):
             if not is_empty(g(grid, r, bd_col)):
-                # 生年月日は"yy/mm/dd"の文字列。DATEは文字列日付を扱えないので
-                # LEFT/MIDで年月日を取り出し、2桁年(00-29→2000s,30-99→1900s)で日付を組み立てる。
+                # 生年月日は"yy/mm/dd"の文字列。DATEDIFは文字列日付を扱えないので、
+                # 開始日も終了日も DATE() で日付シリアルに組み立てる。
+                # 2桁年は 00-29→2000年代 / 30-99→1900年代。
                 ws.cell(r, age_col).value = (
                     f'=IFERROR(DATEDIF(DATE('
                     f'IF(VALUE(LEFT({bdL}{r},2))<30,2000,1900)+VALUE(LEFT({bdL}{r},2)),'
-                    f'VALUE(MID({bdL}{r},4,2)),VALUE(MID({bdL}{r},7,2))),"{date_str}","Y"),"")'
+                    f'VALUE(MID({bdL}{r},4,2)),VALUE(MID({bdL}{r},7,2))),{end_date},"Y"),"")'
                 )
                 cnt_age += 1
         log(f"  歳列({get_column_letter(age_col)}) に {date_str} 基準の年齢式を {cnt_age}件 設定")
