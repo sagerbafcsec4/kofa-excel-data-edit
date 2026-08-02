@@ -619,6 +619,18 @@ def copy_ws_into(src, dst_wb, title):
         dst.merge_cells(str(mc))
     if src.print_area:
         dst.print_area = src.print_area
+    # ページ設定(用紙サイズ/向き/ページに合わせる/余白)を引き継ぎ、印刷レイアウトを元表記と同じにする
+    try:
+        dst.page_setup.orientation = src.page_setup.orientation
+        dst.page_setup.paperSize = src.page_setup.paperSize
+        dst.page_setup.fitToWidth = src.page_setup.fitToWidth
+        dst.page_setup.fitToHeight = src.page_setup.fitToHeight
+        dst.page_setup.scale = src.page_setup.scale
+        if src.sheet_properties.pageSetUpPr is not None:
+            dst.sheet_properties.pageSetUpPr = copy(src.sheet_properties.pageSetUpPr)
+        dst.page_margins = copy(src.page_margins)
+    except Exception:
+        pass
     return dst
 
 def add_hyoki_to_summary(wb, dst_wb, tab_name=None):
