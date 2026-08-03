@@ -293,6 +293,14 @@ def fmt_appearance(ws, log):
             for c in range(1, (len(g3[r-1]) if r <= len(g3) else 0) + 1):
                 if not is_empty(g(g3, r, c)):
                     last_col = max(last_col, c)
+        # 出場記録は「2列で1試合」。最新試合が右半分で切れないよう、試合ペアの右列まで含める。
+        # (1) 試合ヘッダー(行3)の結合セルに最終列が含まれるなら、その結合の右端まで伸ばす
+        for m in ws.merged_cells.ranges:
+            if m.min_row <= 3 <= m.max_row and m.min_col <= last_col <= m.max_col:
+                last_col = max(last_col, m.max_col)
+        # (2) 試合列(H=8開始)の2列区切りで、最終列がペアの左列なら右列まで伸ばす
+        if last_col >= H and (last_col - H) % 2 == 0:
+            last_col += 1
         ws.print_area = f"A1:{get_column_letter(last_col)}{legend_row}"
         log(f"  印刷範囲 A1:{get_column_letter(last_col)}{legend_row}")
 
