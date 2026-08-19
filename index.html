@@ -110,10 +110,15 @@
     <label class="chk"><input id="delK" type="checkbox"> 削除する</label>
     <div class="setq" style="margin-top:18px;">表記シートの「体重(kg)」列を削除しますか？</div>
     <label class="chk"><input id="delW" type="checkbox" checked> 削除する</label>
-    <div class="setq" style="margin-top:18px;">表記だけをまとめたExcelも出力しますか？</div>
-    <label class="chk"><input id="sumHyoki" type="checkbox"> 出力する（アップした全ファイルの表記シートを1ブックに集約／タブ名＝各チーム名）</label>
-    <label class="chk" style="margin-top:8px;"><input id="hyokiOnly" type="checkbox" disabled> 個別ファイルは出力せず、表記まとめだけを出力する</label>
-    <div class="hint">チェックすると、各ファイルの「_processed」個別ダウンロードは作らず、表記まとめExcel1つだけをダウンロードできます。</div>
+    <div style="margin-top:22px; padding:14px 16px; background:var(--soft); border:1px solid var(--line); border-radius:12px;">
+      <div class="setq" style="margin:0;">表記だけをまとめたExcelも出力しますか？</div>
+      <label class="chk" style="margin-top:8px;"><input id="sumHyoki" type="checkbox"> 出力する（アップした全ファイルの表記シートを1ブックに集約／タブ名＝各チーム名）</label>
+      <div id="sumHyokiOpts" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--dash);">
+        <div class="hint" style="margin:0 0 8px;">どちらを出力しますか？</div>
+        <label class="chk"><input type="radio" name="sumMode" id="sumModeBoth" checked> 個別ファイルと一緒に、まとめExcelも出力する</label>
+        <label class="chk" style="margin-top:8px;"><input type="radio" name="sumMode" id="sumModeOnly"> まとめExcelだけを出力する（個別ファイルは出力しない）</label>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -225,7 +230,7 @@ fileInput.onchange=e=>{ addFiles(e.target.files); fileInput.value=""; };
 ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hover");}));
 drop.addEventListener("drop",e=>{ addFiles(e.dataTransfer.files); });
 $("useDate").onchange=()=>{ const on=$("useDate").checked; $("matchDate").disabled=!on; $("ageNote").disabled=!on; };
-$("sumHyoki").onchange=()=>{ const on=$("sumHyoki").checked; $("hyokiOnly").disabled=!on; if(!on) $("hyokiOnly").checked=false; };
+$("sumHyoki").onchange=()=>{ $("sumHyokiOpts").style.display = $("sumHyoki").checked ? "" : "none"; };
 
 function toU8(ret){ return (ret && ret.toJs) ? ret.toJs() : ret; }
 function procName(n){ return n.replace(/\.xlsx$/i, "") + "_processed.xlsx"; }
@@ -245,7 +250,7 @@ runBtn.onclick=async()=>{
   const delW=$("delW").checked;
   const note = $("ageNote").value;
   const sumHyoki = $("sumHyoki").checked;
-  const hyokiOnly = sumHyoki && $("hyokiOnly").checked;
+  const hyokiOnly = sumHyoki && $("sumModeOnly").checked;
   const md = ($("useDate").checked && $("matchDate").value) ? $("matchDate").value : null;
   pyodide.globals.get("reset_outputs")();
   const procOne=pyodide.globals.get("process_one");
