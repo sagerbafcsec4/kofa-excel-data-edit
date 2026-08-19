@@ -1,7 +1,10 @@
 # Excelデータ加工
 
 サッカー記録ワークブックのレイアウト整形をブラウザ上で行うWebアプリ。
-公開URL: https://sagerbafcsec4.github.io/kofa-excel-data-edit/
+
+公開URL（本体・Cloudflare Pages）: https://kofa-excel-data-edit.pages.dev/
+旧URL（GitHub Pages）: https://sagerbafcsec4.github.io/kofa-excel-data-edit/
+（2026-08-19にCloudflareへ移行。動作確認が済み次第GitHub Pagesは停止予定。停止済みならこの2行目は削除してよい）
 
 ---
 
@@ -12,9 +15,16 @@
 **ロジックの修正は `format_records.py` だけ直せばOK**（index.html 側にコードを書き写す必要はありません）。
 
 修正手順:
-1. `format_records.py` を編集
-2. このリポジトリにアップロード（コミット）
-3. 数十秒で GitHub Pages に自動反映（古い表示が出たら Ctrl+F5）
+1. `format_records.py`（ロジック）や `index.html`（画面）を編集
+2. このリポジトリにコミット・プッシュ（GitHubが正本。GitHub Pagesがまだ生きていれば数十秒で自動反映）
+3. Cloudflare Pagesは自動反映されない（GitHub連携ではなく手動配置のため）。反映するには
+   `index.html` と `format_records.py` の2つだけを別フォルダにコピーしてから
+   （`.git` や配布用の `.pyw`/`.bat` まで公開しないため）、次を実行する:
+   ```
+   npx wrangler pages deploy <2ファイルだけ入れたフォルダ> --project-name kofa-excel-data-edit --branch main
+   ```
+   数秒で https://kofa-excel-data-edit.pages.dev/ に反映される（古い表示が出たら Ctrl+F5）。
+   初回のみ `npx wrangler login` でのログインが必要。
 
 別のPC・スマホ、別のClaude/Coworkで作業するときも、
 **まずこの README と `format_records.py` を読めば全体を把握できます。**
