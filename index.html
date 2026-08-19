@@ -107,11 +107,13 @@
     <input id="ageNote" type="text" class="dateinput" value="※年齢は試合当日のもの" disabled style="margin-top:8px; width:100%; max-width:400px;">
     <div class="hint">「歳」列の下に入れる注記の文言（自由に書き換え可）。例：※年齢は本大会開幕時のもの／※年齢は7月11日時点のもの。空欄にすると注記を入れません。</div>
     <div class="setq" style="margin-top:18px;">経歴シートを削除しますか？</div>
-    <label class="chk"><input id="delK" type="checkbox" checked> 削除する</label>
+    <label class="chk"><input id="delK" type="checkbox"> 削除する</label>
     <div class="setq" style="margin-top:18px;">表記シートの「体重(kg)」列を削除しますか？</div>
-    <label class="chk"><input id="delW" type="checkbox"> 削除する</label>
+    <label class="chk"><input id="delW" type="checkbox" checked> 削除する</label>
     <div class="setq" style="margin-top:18px;">表記だけをまとめたExcelも出力しますか？</div>
     <label class="chk"><input id="sumHyoki" type="checkbox"> 出力する（アップした全ファイルの表記シートを1ブックに集約／タブ名＝各チーム名）</label>
+    <label class="chk" style="margin-top:8px;"><input id="hyokiOnly" type="checkbox" disabled> 個別ファイルは出力せず、表記まとめだけを出力する</label>
+    <div class="hint">チェックすると、各ファイルの「_processed」個別ダウンロードは作らず、表記まとめExcel1つだけをダウンロードできます。</div>
   </div>
 
   <div class="card">
@@ -223,6 +225,7 @@ fileInput.onchange=e=>{ addFiles(e.target.files); fileInput.value=""; };
 ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hover");}));
 drop.addEventListener("drop",e=>{ addFiles(e.dataTransfer.files); });
 $("useDate").onchange=()=>{ const on=$("useDate").checked; $("matchDate").disabled=!on; $("ageNote").disabled=!on; };
+$("sumHyoki").onchange=()=>{ const on=$("sumHyoki").checked; $("hyokiOnly").disabled=!on; if(!on) $("hyokiOnly").checked=false; };
 
 function toU8(ret){ return (ret && ret.toJs) ? ret.toJs() : ret; }
 function procName(n){ return n.replace(/\.xlsx$/i, "") + "_processed.xlsx"; }
@@ -242,6 +245,7 @@ runBtn.onclick=async()=>{
   const delW=$("delW").checked;
   const note = $("ageNote").value;
   const sumHyoki = $("sumHyoki").checked;
+  const hyokiOnly = sumHyoki && $("hyokiOnly").checked;
   const md = ($("useDate").checked && $("matchDate").value) ? $("matchDate").value : null;
   pyodide.globals.get("reset_outputs")();
   const procOne=pyodide.globals.get("process_one");
@@ -254,8 +258,11 @@ runBtn.onclick=async()=>{
       const outName=procName(f.name);
       const tabCode = f.name.replace(/\.xlsx$/i, "").split("_")[0];
       log(procOne(outName, buf, delK, md, delW, note, sumHyoki, tabCode));
-      $("dl").appendChild(download(outName, toU8(getOut(outName))));
-      outNames.push(outName); okCount++;
+      if(!hyokiOnly){
+        $("dl").appendChild(download(outName, toU8(getOut(outName))));
+        outNames.push(outName);
+      }
+      okCount++;
     }catch(e){
       const _m=String(e);
       if(_m.includes("安全チェック失敗")) blocked.push(f.name); else errored.push(f.name);
@@ -276,7 +283,7 @@ runBtn.onclick=async()=>{
       log("表記まとめ: 対象の表記シートが無かったため作成しませんでした");
     }
   }
-  const nOut = okCount + (sumName?1:0);
+  const nOut = (hyokiOnly ? 0 : okCount) + (sumName?1:0);
   if(nOut>1){
     try{
       const zip=toU8(pyodide.globals.get("make_zip")());
