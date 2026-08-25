@@ -1,0 +1,8 @@
+# 作業中に自動でできる一時フォルダ（記録しない）
+.wrangler/
+__pycache__/
+_processed/
+_logs/
+build/
+dist/
+*.pyc
