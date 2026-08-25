@@ -35,6 +35,8 @@
   .rm:hover{ background:#d9ccf7; }
   label.chk{ display:flex; align-items:center; gap:9px; font-size:.95rem; cursor:pointer; }
   label.chk input{ width:17px; height:17px; accent-color:var(--p1); }
+  /* 年月の入力欄は上の17px指定の対象外にする（チェックボックス用の指定に潰されるため） */
+  label.chk input[type="month"]{ width:auto; height:auto; min-width:158px; }
   .swatch{ width:15px; height:15px; border-radius:3px; border:1px solid #94a3b8; display:inline-block; flex:0 0 auto; }
   button{ font:inherit; border:0; border-radius:9px; padding:11px 22px; cursor:pointer; }
   button.primary{ background:var(--grad); color:#fff; font-weight:700; box-shadow:0 6px 16px -6px var(--ring); }
@@ -117,8 +119,8 @@
       <div class="hint" style="margin:0 0 8px;">シーズンを選ぶと、下の年月が自動で入ります。冬の移籍などで区切りをずらしたいときは、下を直接書き換えてください。</div>
       <select id="seasonSel" class="dateinput"></select>
       <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:12px;">
-        <label class="chk" style="gap:7px;"><span class="swatch" style="background:#ccffff;"></span>夏の加入（水色）<input id="newSummer" type="month" class="dateinput"></label>
-        <label class="chk" style="gap:7px;"><span class="swatch" style="background:#ffff00;"></span>冬の加入（黄色）<input id="newWinter" type="month" class="dateinput"></label>
+        <label class="chk" style="gap:8px;"><span class="swatch" style="background:#ccffff;"></span>夏の加入（水色）<span style="color:var(--muted);">は</span><input id="newSummer" type="month" class="dateinput"><span style="color:var(--muted);">以降</span></label>
+        <label class="chk" style="gap:8px;"><span class="swatch" style="background:#ffff00;"></span>冬の加入（黄色）<span style="color:var(--muted);">は</span><input id="newWinter" type="month" class="dateinput"><span style="color:var(--muted);">以降</span></label>
       </div>
       <div class="hint">経歴シートの「経歴」欄を見て、<b>その年月以降に今のクラブへ入った選手</b>を新加入とみなします。「〇〇代表」の経歴は数えません。片方を空欄にすると、その色は使いません。</div>
     </div>
