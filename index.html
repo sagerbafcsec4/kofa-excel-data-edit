@@ -35,6 +35,7 @@
   .rm:hover{ background:#d9ccf7; }
   label.chk{ display:flex; align-items:center; gap:9px; font-size:.95rem; cursor:pointer; }
   label.chk input{ width:17px; height:17px; accent-color:var(--p1); }
+  .swatch{ width:15px; height:15px; border-radius:3px; border:1px solid #94a3b8; display:inline-block; flex:0 0 auto; }
   button{ font:inherit; border:0; border-radius:9px; padding:11px 22px; cursor:pointer; }
   button.primary{ background:var(--grad); color:#fff; font-weight:700; box-shadow:0 6px 16px -6px var(--ring); }
   button.primary:disabled{ background:#c7c2d6; box-shadow:none; cursor:not-allowed; }
@@ -110,6 +111,17 @@
     <label class="chk"><input id="delK" type="checkbox"> 削除する</label>
     <div class="setq" style="margin-top:18px;">表記シートの「体重(kg)」列を削除しますか？</div>
     <label class="chk"><input id="delW" type="checkbox" checked> 削除する</label>
+    <div class="setq" style="margin-top:18px;">新加入選手に色を付けますか？</div>
+    <label class="chk"><input id="colorNew" type="checkbox"> 色を付ける（表記シートと経歴シートの、新加入選手の行を塗る）</label>
+    <div id="colorNewOpts" style="display:none; margin-top:10px; padding:14px 16px; background:var(--soft); border:1px solid var(--line); border-radius:12px;">
+      <div class="hint" style="margin:0 0 8px;">シーズンを選ぶと、下の年月が自動で入ります。冬の移籍などで区切りをずらしたいときは、下を直接書き換えてください。</div>
+      <select id="seasonSel" class="dateinput"></select>
+      <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:12px;">
+        <label class="chk" style="gap:7px;"><span class="swatch" style="background:#ccffff;"></span>夏の加入（水色）<input id="newSummer" type="month" class="dateinput"></label>
+        <label class="chk" style="gap:7px;"><span class="swatch" style="background:#ffff00;"></span>冬の加入（黄色）<input id="newWinter" type="month" class="dateinput"></label>
+      </div>
+      <div class="hint">経歴シートの「経歴」欄を見て、<b>その年月以降に今のクラブへ入った選手</b>を新加入とみなします。「〇〇代表」の経歴は数えません。片方を空欄にすると、その色は使いません。</div>
+    </div>
     <div style="margin-top:22px; padding:14px 16px; background:var(--soft); border:1px solid var(--line); border-radius:12px;">
       <div class="setq" style="margin:0;">表記だけをまとめたExcelも出力しますか？</div>
       <label class="chk" style="margin-top:8px;"><input id="sumHyoki" type="checkbox"> 出力する（アップした全ファイルの表記シートを1ブックに集約／タブ名＝各チーム名）</label>
@@ -134,7 +146,7 @@
     <div id="zip"></div>
     <div id="dl" class="dl"></div>
     <details class="detail" id="detail"><summary>処理の詳細を表示</summary><div id="log"></div></details>
-    <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記シートの「歳」列に年齢計算式を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
+    <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記シートの「歳」列に年齢計算式を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。新加入の色付けをONにしたときは、表記・経歴シートの該当行に<b>背景色を付けるだけ</b>です（値は変わりません）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
   </div>
 </div>
 
@@ -147,12 +159,16 @@ _SUM_WB = None
 def reset_outputs():
     global _SUM_WB
     _OUTPUTS.clear(); _SUM_WB = None
-def process_one(name, data, delete_keireki, match_date=None, delete_weight=False, age_note=None, make_hyoki_summary=False, tab_code=None):
+def process_one(name, data, delete_keireki, match_date=None, delete_weight=False, age_note=None, make_hyoki_summary=False, tab_code=None, color_new=False, new_summer=None, new_winter=None):
     global DELETE_KEIREKI, MATCH_DATE, DELETE_WEIGHT, AGE_NOTE, _SUM_WB
+    global COLOR_NEW, NEW_SUMMER, NEW_WINTER
     DELETE_KEIREKI = bool(delete_keireki)
     MATCH_DATE = match_date or None
     DELETE_WEIGHT = bool(delete_weight)
     AGE_NOTE = age_note
+    COLOR_NEW = bool(color_new)
+    NEW_SUMMER = new_summer or None
+    NEW_WINTER = new_winter or None
     logs = []
     wb = openpyxl.load_workbook(io.BytesIO(bytes(data)))
     process_checked(wb, lambda s: logs.append(s))
@@ -231,6 +247,21 @@ fileInput.onchange=e=>{ addFiles(e.target.files); fileInput.value=""; };
 drop.addEventListener("drop",e=>{ addFiles(e.dataTransfer.files); });
 $("useDate").onchange=()=>{ const on=$("useDate").checked; $("matchDate").disabled=!on; $("ageNote").disabled=!on; };
 $("sumHyoki").onchange=()=>{ $("sumHyokiOpts").style.display = $("sumHyoki").checked ? "" : "none"; };
+$("colorNew").onchange=()=>{ $("colorNewOpts").style.display = $("colorNew").checked ? "" : "none"; };
+(function initSeason(){
+  const sel=$("seasonSel"), now=new Date();
+  const cur = (now.getMonth()+1 >= 7) ? now.getFullYear() : now.getFullYear()-1;
+  const two=n=>String(n%100).padStart(2,"0");
+  for(let y=cur-3; y<=cur+3; y++){
+    const o=document.createElement("option");
+    o.value=String(y); o.textContent=two(y)+"/"+two(y+1)+" シーズン";
+    sel.appendChild(o);
+  }
+  sel.value=String(cur);
+  const apply=()=>{ const y=parseInt(sel.value,10);
+    $("newSummer").value = y+"-07"; $("newWinter").value = (y+1)+"-01"; };
+  apply(); sel.onchange=apply;
+})();
 
 function toU8(ret){ return (ret && ret.toJs) ? ret.toJs() : ret; }
 function procName(n){ return n.replace(/\.xlsx$/i, "") + "_processed.xlsx"; }
@@ -252,6 +283,9 @@ runBtn.onclick=async()=>{
   const sumHyoki = $("sumHyoki").checked;
   const hyokiOnly = sumHyoki && $("sumModeOnly").checked;
   const md = ($("useDate").checked && $("matchDate").value) ? $("matchDate").value : null;
+  const colorNew = $("colorNew").checked;
+  const newSummer = colorNew ? ($("newSummer").value || null) : null;
+  const newWinter = colorNew ? ($("newWinter").value || null) : null;
   pyodide.globals.get("reset_outputs")();
   const procOne=pyodide.globals.get("process_one");
   const getOut=pyodide.globals.get("get_output");
@@ -262,7 +296,7 @@ runBtn.onclick=async()=>{
       const buf=new Uint8Array(await f.arrayBuffer());
       const outName=procName(f.name);
       const tabCode = f.name.replace(/\.xlsx$/i, "").split("_")[0];
-      log(procOne(outName, buf, delK, md, delW, note, sumHyoki, tabCode));
+      log(procOne(outName, buf, delK, md, delW, note, sumHyoki, tabCode, colorNew, newSummer, newWinter));
       if(!hyokiOnly){
         $("dl").appendChild(download(outName, toU8(getOut(outName))));
         outNames.push(outName);

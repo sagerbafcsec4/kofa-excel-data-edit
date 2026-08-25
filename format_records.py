@@ -7,7 +7,7 @@
   ロジックの修正はこのファイルだけ直せばよい(index.html 側に書き写す必要はない)。
 """
 # redeploy: 2026-07-04 13:50
-import sys, os, glob
+import sys, os, glob, re
 from datetime import datetime
 import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string
@@ -43,6 +43,12 @@ DELETE_KEIREKI = None
 MATCH_DATE = None       # 試合日 "YYYY/MM/DD"。None(未指定)なら歳列は変更しない
 DELETE_WEIGHT = None    # True なら表記シートの体重(kg)列を削除
 AGE_NOTE = None         # 「歳」列下の注記文言。None ならデフォルト文言を使用
+COLOR_NEW = False       # True なら新加入選手の行に背景色を付ける(表記・経歴シート)
+NEW_SUMMER = None       # 夏の新加入とみなす下限 "YYYY-MM"(例 "2026-07")。None なら使わない
+NEW_WINTER = None       # 冬の新加入とみなす下限 "YYYY-MM"(例 "2027-01")。None なら使わない
+FILL_SUMMER = "FFCCFFFF"  # 夏の新加入 = 水色
+FILL_WINTER = "FFFFFF00"  # 冬の新加入 = 黄色
+FILL_BDAY   = "FFFFCCCC"  # 試合当日が誕生日 = うすいピンク
 
 def is_empty(v):
     return v is None or (isinstance(v, str) and v.strip() == "")
@@ -382,7 +388,7 @@ def fmt_hyoki(ws, log):
     if MATCH_DATE and age_col and bd_col:
         date_str = MATCH_DATE.replace("-", "/")
         _my, _mm, _md = [int(x) for x in MATCH_DATE.split("-")]
-        yellow = PatternFill(patternType="solid", fgColor="FFFFFF00")
+        bday_fill = PatternFill(patternType="solid", fgColor=FILL_BDAY)
         cnt_age = 0; cnt_bday = 0
         for r in range(3, last + 1):
             bd_v = g(grid, r, bd_col)
@@ -392,10 +398,10 @@ def fmt_hyoki(ws, log):
             if a is not None:
                 ws.cell(r, age_col).value = a   # 式ではなく計算済みの年齢(数値)を入れる
                 cnt_age += 1
-            # 試合日が誕生日(月日が一致)なら 歳・生年月日 を黄色で塗る
+            # 試合日が誕生日(月日が一致)なら 歳・生年月日 をうすいピンクで塗る
             if bday_md(bd_v) == (_mm, _md):
-                ws.cell(r, age_col).fill = yellow
-                ws.cell(r, bd_col).fill = yellow
+                ws.cell(r, age_col).fill = bday_fill
+                ws.cell(r, bd_col).fill = bday_fill
                 cnt_bday += 1
         log(f"  歳列({get_column_letter(age_col)}) に {date_str} 時点の年齢(数値)を {cnt_age}件 設定 / 誕生日ハイライト {cnt_bday}件")
         note_text = str(AGE_NOTE if AGE_NOTE is not None else "※年齢は試合当日のもの").strip()
@@ -657,7 +663,188 @@ def add_hyoki_to_summary(wb, dst_wb, tab_name=None):
     copy_ws_into(ws, dst_wb, title)
     return title
 
+# ============================================================
+# 新加入選手の判定と着色
+#   判定材料は経歴シートの「経歴」列。「〇〇代表(…)」は無視し、
+#   残ったクラブのうち *最後の1件* の開始年月(=現所属クラブに入った時期)で判定する。
+# ============================================================
+_CAREER_YM_RE = re.compile(r"(\d{1,2})\s*年\s*(\d{1,2})\s*月")
+
+
+def split_career(text):
+    """経歴セルを「括弧の外のカンマ」で1件ずつに分ける。
+    括弧の中の読点(例:「25年8月-26年6月、バイエルンからのL」)では分けない。"""
+    out, buf, depth = [], "", 0
+    for ch in str(text):
+        if ch in "(（":
+            depth += 1
+        elif ch in ")）":
+            depth = max(0, depth - 1)
+        if ch in ",、" and depth == 0:
+            out.append(buf); buf = ""
+        else:
+            buf += ch
+    out.append(buf)
+    return [s.strip() for s in out if s.strip()]
+
+
+def is_national_entry(entry):
+    """「〇〇代表(…)」= 代表歴なら True。クラブ経歴として数えない。"""
+    head = re.split(r"[(（]", str(entry), 1)[0]
+    return "代表" in head
+
+
+def entry_start_ym(entry):
+    """経歴1件から開始年月 (年, 月) を返す。拾えなければ None。"""
+    m = _CAREER_YM_RE.search(str(entry))
+    if not m:
+        return None
+    y, mo = int(m.group(1)), int(m.group(2))
+    if y < 100:
+        y = 2000 + y if y < 70 else 1900 + y
+    return (y, mo) if 1 <= mo <= 12 else None
+
+
+def last_club_start(career_text):
+    """代表歴を除いた「最後のクラブ経歴」の開始年月。"""
+    clubs = [e for e in split_career(career_text) if not is_national_entry(e)]
+    return entry_start_ym(clubs[-1]) if clubs else None
+
+
+def parse_ym(s):
+    """"YYYY-MM" / "YYYY/MM" -> (年, 月)。空・不正なら None。"""
+    if s is None or str(s).strip() == "":
+        return None
+    try:
+        p = str(s).strip().replace("/", "-").split("-")
+        y, mo = int(p[0]), int(p[1])
+        return (y, mo) if 1 <= mo <= 12 else None
+    except Exception:
+        return None
+
+
+def _find_header_col(grid, maxc, label):
+    for c in range(1, maxc + 1):
+        h = g(grid, 2, c)
+        if isinstance(h, str) and h.strip() == label:
+            return c
+    return None
+
+
+def detect_new_players(wb, log=None):
+    """経歴シートを読み {フルネーム: "summer" / "winter"} を返す。
+    経歴シートを削除する設定でも判定できるよう、削除より *前* に呼ぶこと。"""
+    if not COLOR_NEW:
+        return {}
+    cuts = []
+    w_cut, s_cut = parse_ym(NEW_WINTER), parse_ym(NEW_SUMMER)
+    if w_cut:
+        cuts.append((w_cut, "winter"))
+    if s_cut:
+        cuts.append((s_cut, "summer"))
+    if not cuts:
+        if log:
+            log("  [新加入] 区切りの年月が未指定のため色付けしません")
+        return {}
+    cuts.sort(key=lambda x: x[0], reverse=True)   # 遅い区切りから判定
+    ws = next((w for w in wb.worksheets if is_keireki_sheet(w)), None)
+    if ws is None:
+        if log:
+            log("  [新加入] 経歴シートが無いため判定できません")
+        return {}
+    grid = read_grid(ws)
+    maxc = max((len(r) for r in grid), default=0)
+    name_col = _find_header_col(grid, maxc, "フルネーム")
+    kei_col = _find_header_col(grid, maxc, "経歴")
+    if not (name_col and kei_col):
+        if log:
+            log("  [新加入] 経歴シートの『フルネーム』『経歴』列が見つからず判定できません")
+        return {}
+    last = last_data_row(grid, 1, maxc)
+    marks, names = {}, {"summer": [], "winter": []}
+    for r in range(3, last + 1):
+        nm, cv = g(grid, r, name_col), g(grid, r, kei_col)
+        if is_empty(nm) or is_empty(cv):
+            continue
+        ym = last_club_start(cv)
+        if ym is None:
+            continue
+        for cut, kind in cuts:
+            if ym >= cut:
+                marks[str(nm).strip()] = kind
+                names[kind].append(str(nm).strip())
+                break
+    if log:
+        log("  [新加入] 夏(水色) %d人 / 冬(黄色) %d人"
+            % (len(names["summer"]), len(names["winter"])))
+        for kind, lab in (("summer", "夏"), ("winter", "冬")):
+            if names[kind]:
+                log("    " + lab + ": " + "、".join(names[kind]))
+    return marks
+
+
+def _hyoki_fill_last_col(ws):
+    """表記シートで塗る右端の列(見出し・データがある一番右の列)。"""
+    grid = read_grid(ws)
+    maxc = max((len(r) for r in grid), default=0)
+    last = last_data_row(grid, 1, maxc)
+    lastc = 0
+    for c in range(1, maxc + 1):
+        for r in range(2, last + 1):
+            if not is_empty(g(grid, r, c)):
+                lastc = c
+                break
+    return lastc
+
+
+def apply_new_colors(wb, marks, log):
+    """表記・経歴シートの該当行を塗る(セルの値は一切変えない)。"""
+    if not marks:
+        return
+    fills = {"summer": PatternFill(patternType="solid", fgColor=FILL_SUMMER),
+             "winter": PatternFill(patternType="solid", fgColor=FILL_WINTER)}
+    for ws in wb.worksheets:
+        if is_hyoki_sheet(ws):
+            cmax = _hyoki_fill_last_col(ws)
+        elif is_keireki_sheet(ws):
+            cmax = 7          # 経歴シートは A〜G 列
+        else:
+            continue
+        grid = read_grid(ws)
+        gmax = max((len(r) for r in grid), default=0)
+        name_col = _find_header_col(grid, gmax, "フルネーム")
+        if not name_col or cmax < 1:
+            log("  [新加入] %s: 『フルネーム』列が見つからず着色を見送り" % ws.title)
+            continue
+        last = last_data_row(grid, 1, gmax)
+        hit, seen = 0, set()
+        for r in range(3, last + 1):
+            nm = g(grid, r, name_col)
+            if is_empty(nm):
+                continue
+            kind = marks.get(str(nm).strip())
+            if not kind:
+                continue
+            for c in range(1, cmax + 1):
+                cell = ws.cell(r, c)
+                cur = cell.fill
+                # 誕生日ハイライト(うすいピンク)は上書きせず残す
+                if cur is not None and cur.patternType == "solid" \
+                        and str(getattr(cur.fgColor, "rgb", "")).upper() == FILL_BDAY:
+                    continue
+                cell.fill = fills[kind]
+            hit += 1
+            seen.add(str(nm).strip())
+        log("  [新加入] %s: %d行を着色(A〜%s列)"
+            % (ws.title, hit, get_column_letter(cmax)))
+        miss = [n for n in marks if n not in seen]
+        if miss:
+            log("    ※名前が見つからなかった人: " + "、".join(miss))
+
+
 def process_wb(wb, log):
+    # 経歴シートを削除する設定でも判定できるよう、最初に新加入を見定める
+    new_marks = detect_new_players(wb, log)
     for ws in list(wb.worksheets):
         t = ws.title
         if is_appearance_sheet(ws):
@@ -675,6 +862,7 @@ def process_wb(wb, log):
             log(f"[§C フォーメーション] {t}"); fmt_formation(ws, wb, log)
         else:
             log(f"[--] {t} -> 対象外シート、スキップ")
+    apply_new_colors(wb, new_marks, log)
     return wb
 
 def _exempt_cols(ws):
