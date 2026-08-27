@@ -46,6 +46,7 @@ AGE_NOTE = None         # 「歳」列下の注記文言。None ならデフォ�
 COLOR_NEW = False       # True なら新加入選手の行に背景色を付ける(表記・経歴シート)
 NEW_SUMMER = None       # 夏の新加入とみなす下限 "YYYY-MM"(例 "2026-07")。None なら使わない
 NEW_WINTER = None       # 冬の新加入とみなす下限 "YYYY-MM"(例 "2027-01")。None なら使わない
+STRIP_JOSHI = False     # True なら全シート・シート名から「女子」の文字だけを機械的に削除する
 FILL_SUMMER = "FFCCFFFF"  # 夏の新加入 = 水色
 FILL_WINTER = "FFFFFF00"  # 冬の新加入 = 黄色
 FILL_BDAY   = "FFFFCCCC"  # 試合当日が誕生日 = うすいピンク
@@ -846,6 +847,48 @@ def apply_new_colors(wb, marks, log):
             log("    ※名前が見つからなかった人: " + "、".join(miss))
 
 
+# ============================================================
+# 「女子」カット(オプション)
+#   データベース登録上「女子」を付けて区別しているだけで、納品時は不要という
+#   ユーザー要望(2026-08-27)。全シート・シート名の「女子」という文字だけを
+#   機械的に削除する(前後の文脈は問わない)。
+#   ★値を変える処理のため、安全チェック(process_checked の値不変照合)よりも
+#     前に実行する。歳列の例外と違い列単位では表現できない(全シート・全セル
+#     が対象になりうる)ため、スナップショットを撮る前に済ませる方式にした。
+# ============================================================
+def strip_joshi_text(s):
+    """文字列から「女子」を除去し、できた余分な空白を詰める。
+    変更が無ければ (元の文字列, False)、あれば (新しい文字列, True) を返す。"""
+    if not isinstance(s, str) or "女子" not in s:
+        return s, False
+    new = s.replace("女子", "")
+    new = re.sub(r"[ 　]+", " ", new).strip()
+    return new, True
+
+
+def strip_joshi(wb, log):
+    """全ワークシートのシート名・全セルの文字列から「女子」を削除する。"""
+    n_tabs = n_cells = 0
+    titles = {ws.title for ws in wb.worksheets}
+    for ws in wb.worksheets:
+        new_title, changed = strip_joshi_text(ws.title)
+        if changed:
+            if new_title and new_title not in titles:
+                titles.discard(ws.title); titles.add(new_title)
+                log(f"  [女子カット] シート名『{ws.title}』-> 『{new_title}』")
+                ws.title = new_title
+                n_tabs += 1
+            else:
+                log(f"  [女子カット] シート名『{ws.title}』は変更後の名前が使えないため据え置き")
+        for row in ws.iter_rows():
+            for cell in row:
+                if isinstance(cell.value, str) and "女子" in cell.value:
+                    new_val, _ = strip_joshi_text(cell.value)
+                    cell.value = new_val
+                    n_cells += 1
+    log(f"  [女子カット] シート名 {n_tabs}件 / セル {n_cells}件 を変更")
+
+
 def process_wb(wb, log):
     # 経歴シートを削除する設定でも判定できるよう、最初に新加入を見定める
     new_marks = detect_new_players(wb, log)
@@ -905,6 +948,8 @@ def verify_no_value_change(before, wb):
     return problems
 
 def process_checked(wb, log):
+    if STRIP_JOSHI:
+        strip_joshi(wb, log)
     before = snapshot_values(wb)
     process_wb(wb, log)
     problems = verify_no_value_change(before, wb)

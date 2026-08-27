@@ -124,6 +124,9 @@
       </div>
       <div class="hint">経歴シートの「経歴」欄を見て、<b>その年月以降に今のクラブへ入った選手</b>を新加入とみなします。「〇〇代表」の経歴は数えません。片方を空欄にすると、その色は使いません。</div>
     </div>
+    <div class="setq" style="margin-top:18px;">"女子"という文字を削除しますか？</div>
+    <label class="chk"><input id="stripJoshi" type="checkbox"> 削除する（全シートの中身とシート名から「女子」の文字だけを機械的に取り除く。例：「アーセナル女子」→「アーセナル」）</label>
+    <div class="hint">データベース登録上、男子と区別するために付けている「女子」の文字を、納品時にまとめてカットします。それ以外の文字は変えません。</div>
     <div style="margin-top:22px; padding:14px 16px; background:var(--soft); border:1px solid var(--line); border-radius:12px;">
       <div class="setq" style="margin:0;">表記だけをまとめたExcelも出力しますか？</div>
       <label class="chk" style="margin-top:8px;"><input id="sumHyoki" type="checkbox"> 出力する（アップした全ファイルの表記シートを1ブックに集約／タブ名＝各チーム名）</label>
@@ -148,7 +151,7 @@
     <div id="zip"></div>
     <div id="dl" class="dl"></div>
     <details class="detail" id="detail"><summary>処理の詳細を表示</summary><div id="log"></div></details>
-    <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記シートの「歳」列に年齢計算式を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。新加入の色付けをONにしたときは、表記・経歴シートの該当行に<b>背景色を付けるだけ</b>です（値は変わりません）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
+    <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記シートの「歳」列に年齢計算式を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。新加入の色付けをONにしたときは、表記・経歴シートの該当行に<b>背景色を付けるだけ</b>です（値は変わりません）。<b>「女子」削除をONにしたときのみ</b>、全シートの中身とシート名から「女子」という文字だけを取り除きます（この変更は自動照合の対象外です）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
   </div>
 </div>
 
@@ -161,9 +164,9 @@ _SUM_WB = None
 def reset_outputs():
     global _SUM_WB
     _OUTPUTS.clear(); _SUM_WB = None
-def process_one(name, data, delete_keireki, match_date=None, delete_weight=False, age_note=None, make_hyoki_summary=False, tab_code=None, color_new=False, new_summer=None, new_winter=None):
+def process_one(name, data, delete_keireki, match_date=None, delete_weight=False, age_note=None, make_hyoki_summary=False, tab_code=None, color_new=False, new_summer=None, new_winter=None, strip_joshi=False):
     global DELETE_KEIREKI, MATCH_DATE, DELETE_WEIGHT, AGE_NOTE, _SUM_WB
-    global COLOR_NEW, NEW_SUMMER, NEW_WINTER
+    global COLOR_NEW, NEW_SUMMER, NEW_WINTER, STRIP_JOSHI
     DELETE_KEIREKI = bool(delete_keireki)
     MATCH_DATE = match_date or None
     DELETE_WEIGHT = bool(delete_weight)
@@ -171,6 +174,7 @@ def process_one(name, data, delete_keireki, match_date=None, delete_weight=False
     COLOR_NEW = bool(color_new)
     NEW_SUMMER = new_summer or None
     NEW_WINTER = new_winter or None
+    STRIP_JOSHI = bool(strip_joshi)
     logs = []
     wb = openpyxl.load_workbook(io.BytesIO(bytes(data)))
     process_checked(wb, lambda s: logs.append(s))
@@ -288,6 +292,7 @@ runBtn.onclick=async()=>{
   const colorNew = $("colorNew").checked;
   const newSummer = colorNew ? ($("newSummer").value || null) : null;
   const newWinter = colorNew ? ($("newWinter").value || null) : null;
+  const stripJoshi = $("stripJoshi").checked;
   pyodide.globals.get("reset_outputs")();
   const procOne=pyodide.globals.get("process_one");
   const getOut=pyodide.globals.get("get_output");
@@ -298,7 +303,7 @@ runBtn.onclick=async()=>{
       const buf=new Uint8Array(await f.arrayBuffer());
       const outName=procName(f.name);
       const tabCode = f.name.replace(/\.xlsx$/i, "").split("_")[0];
-      log(procOne(outName, buf, delK, md, delW, note, sumHyoki, tabCode, colorNew, newSummer, newWinter));
+      log(procOne(outName, buf, delK, md, delW, note, sumHyoki, tabCode, colorNew, newSummer, newWinter, stripJoshi));
       if(!hyokiOnly){
         $("dl").appendChild(download(outName, toU8(getOut(outName))));
         outNames.push(outName);
