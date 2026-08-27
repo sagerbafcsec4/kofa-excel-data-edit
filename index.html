@@ -47,6 +47,11 @@
   .alert.danger{ display:block; background:#fdecec; border:1px solid #f3b4b4; color:#9b1c1c; }
   .alert b{ color:#7f1414; }
   .setq{ font-weight:700; font-size:.92rem; margin:0 0 8px; }
+  .setblock{ border:1px solid var(--line); border-radius:14px; padding:16px 18px 18px; margin-bottom:14px; background:#fcfbff; }
+  .setblock:last-child{ margin-bottom:0; }
+  .setblock-title{ display:flex; align-items:center; gap:9px; font-weight:800; font-size:.92rem; color:var(--p1); margin:0 0 14px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+  .setblock-title .dot{ width:9px; height:9px; border-radius:50%; background:var(--grad); flex:0 0 auto; }
+  .setblock .setq:first-child{ margin-top:0 !important; }
   .hint{ font-size:.8rem; color:var(--muted); margin:4px 0 0; }
   .dateinput{ font:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); accent-color:var(--p1); }
   .dateinput:disabled{ background:#f3f3f7; color:#a7adba; cursor:not-allowed; }
@@ -104,35 +109,45 @@
 
   <div class="card">
     <h2><span class="num">2</span>設定</h2>
-    <label class="chk"><input id="useDate" type="checkbox"> 試合日を指定する（表記シートの「歳」列にその日の年齢を入れる）</label>
-    <label class="chk" style="margin-top:10px;"><input id="perFileDate" type="checkbox" disabled> ファイルごとに試合日を指定する（複数の試合日が混ざっているときに使う）</label>
-    <input id="matchDate" type="date" class="dateinput" disabled style="margin-top:8px;">
-    <div class="hint" id="matchDateHint">チェックして日付を選ぶと、その日時点の年齢が入ります。指定しない場合は「歳」列を変更しません。</div>
-    <div class="hint" id="perFileDateHint" style="display:none;">「ファイルごとに指定する」をONにすると、下のファイル一覧にファイルごとの日付欄が出ます。日付を入れなかったファイルは「歳」列を変更しません。</div>
-    <input id="ageNote" type="text" class="dateinput" value="※年齢は試合当日のもの" disabled style="margin-top:8px; width:100%; max-width:400px;">
-    <div class="hint">「歳」列の下に入れる注記の文言（自由に書き換え可）。例：※年齢は本大会開幕時のもの／※年齢は7月11日時点のもの。空欄にすると注記を入れません。</div>
-    <div class="setq" style="margin-top:18px;">経歴シートを削除しますか？</div>
-    <label class="chk"><input id="delK" type="checkbox"> 削除する</label>
-    <div class="setq" style="margin-top:18px;">表記シートの「体重(kg)」列を削除しますか？</div>
-    <label class="chk"><input id="delW" type="checkbox" checked> 削除する</label>
-    <div class="setq" style="margin-top:18px;">新加入選手に色を付けますか？</div>
-    <label class="chk"><input id="colorNew" type="checkbox"> 色を付ける（表記シートと経歴シートの、新加入選手の行を塗る）</label>
-    <div id="colorNewOpts" style="display:none; margin-top:10px; padding:14px 16px; background:var(--soft); border:1px solid var(--line); border-radius:12px;">
-      <div class="hint" style="margin:0 0 8px;">シーズンを選ぶと、下の年月が自動で入ります。冬の移籍などで区切りをずらしたいときは、下を直接書き換えてください。</div>
-      <select id="seasonSel" class="dateinput"></select>
-      <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:12px;">
-        <label class="chk" style="gap:8px;"><span class="swatch" style="background:#ccffff;"></span>夏の加入（水色）<span style="color:var(--muted);">は</span><input id="newSummer" type="month" class="dateinput"><span style="color:var(--muted);">以降</span></label>
-        <label class="chk" style="gap:8px;"><span class="swatch" style="background:#ffff00;"></span>冬の加入（黄色）<span style="color:var(--muted);">は</span><input id="newWinter" type="month" class="dateinput"><span style="color:var(--muted);">以降</span></label>
-      </div>
-      <div class="hint">経歴シートの「経歴」欄を見て、<b>その年月以降に今のクラブへ入った選手</b>を新加入とみなします。「〇〇代表」の経歴は数えません。片方を空欄にすると、その色は使いません。</div>
+
+    <div class="setblock">
+      <div class="setblock-title"><span class="dot"></span>試合日</div>
+      <label class="chk"><input id="useDate" type="checkbox"> 試合日を指定する（表記シートの「歳」列にその日の年齢を入れる）</label>
+      <label class="chk" style="margin-top:10px;"><input id="perFileDate" type="checkbox" disabled> ファイルごとに試合日を指定する（複数の試合日が混ざっているときに使う）</label>
+      <input id="matchDate" type="date" class="dateinput" disabled style="margin-top:8px;">
+      <div class="hint" id="matchDateHint">チェックして日付を選ぶと、その日時点の年齢が入ります。指定しない場合は「歳」列を変更しません。</div>
+      <div class="hint" id="perFileDateHint" style="display:none;">「ファイルごとに指定する」をONにすると、下のファイル一覧にファイルごとの日付欄が出ます。日付を入れなかったファイルは「歳」列を変更しません。</div>
+      <input id="ageNote" type="text" class="dateinput" value="※年齢は試合当日のもの" disabled style="margin-top:8px; width:100%; max-width:400px;">
+      <div class="hint">「歳」列の下に入れる注記の文言（自由に書き換え可）。例：※年齢は本大会開幕時のもの／※年齢は7月11日時点のもの。空欄にすると注記を入れません。</div>
     </div>
-    <div class="setq" style="margin-top:18px;">"女子"という文字を削除しますか？</div>
-    <label class="chk"><input id="stripJoshi" type="checkbox"> 削除する（全シートの中身とシート名から「女子」の文字だけを機械的に取り除く。例：「アーセナル女子」→「アーセナル」）</label>
-    <div class="hint">データベース登録上、男子と区別するために付けている「女子」の文字を、納品時にまとめてカットします。それ以外の文字は変えません。</div>
-    <div style="margin-top:22px; padding:14px 16px; background:var(--soft); border:1px solid var(--line); border-radius:12px;">
-      <div class="setq" style="margin:0;">表記だけをまとめたExcelも出力しますか？</div>
+
+    <div class="setblock">
+      <div class="setblock-title"><span class="dot"></span>細かい設定</div>
+      <div class="setq">経歴シートを削除しますか？</div>
+      <label class="chk"><input id="delK" type="checkbox"> 削除する</label>
+      <div class="setq" style="margin-top:18px;">表記シートの「体重(kg)」列を削除しますか？</div>
+      <label class="chk"><input id="delW" type="checkbox" checked> 削除する</label>
+      <div class="setq" style="margin-top:18px;">新加入選手に色を付けますか？</div>
+      <label class="chk"><input id="colorNew" type="checkbox"> 色を付ける（表記シートと経歴シートの、新加入選手の行を塗る）</label>
+      <div id="colorNewOpts" style="display:none; margin-top:10px; padding:14px 16px; background:var(--soft); border:1px solid var(--line); border-radius:12px;">
+        <div class="hint" style="margin:0 0 8px;">シーズンを選ぶと、下の年月が自動で入ります。冬の移籍などで区切りをずらしたいときは、下を直接書き換えてください。</div>
+        <select id="seasonSel" class="dateinput"></select>
+        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:12px;">
+          <label class="chk" style="gap:8px;"><span class="swatch" style="background:#ccffff;"></span>夏の加入（水色）<span style="color:var(--muted);">は</span><input id="newSummer" type="month" class="dateinput"><span style="color:var(--muted);">以降</span></label>
+          <label class="chk" style="gap:8px;"><span class="swatch" style="background:#ffff00;"></span>冬の加入（黄色）<span style="color:var(--muted);">は</span><input id="newWinter" type="month" class="dateinput"><span style="color:var(--muted);">以降</span></label>
+        </div>
+        <div class="hint">経歴シートの「経歴」欄を見て、<b>その年月以降に今のクラブへ入った選手</b>を新加入とみなします。「〇〇代表」の経歴は数えません。片方を空欄にすると、その色は使いません。</div>
+      </div>
+      <div class="setq" style="margin-top:18px;">"女子"という文字を削除しますか？</div>
+      <label class="chk"><input id="stripJoshi" type="checkbox"> 削除する（全シートの中身とシート名から「女子」の文字だけを機械的に取り除く。例：「アーセナル女子」→「アーセナル」）</label>
+      <div class="hint">データベース登録上、男子と区別するために付けている「女子」の文字を、納品時にまとめてカットします。それ以外の文字は変えません。</div>
+    </div>
+
+    <div class="setblock">
+      <div class="setblock-title"><span class="dot"></span>表記だけ出力</div>
+      <div class="setq">表記だけをまとめたExcelも出力しますか？</div>
       <label class="chk" style="margin-top:8px;"><input id="sumHyoki" type="checkbox"> 出力する（アップした全ファイルの表記シートを1ブックに集約／タブ名＝各チーム名）</label>
-      <div id="sumHyokiOpts" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--dash);">
+      <div id="sumHyokiOpts" style="display:none; margin-top:12px; padding:14px 16px; background:var(--soft); border:1px solid var(--line); border-radius:12px;">
         <div class="hint" style="margin:0 0 8px;">どちらを出力しますか？</div>
         <label class="chk"><input type="radio" name="sumMode" id="sumModeBoth" checked> 個別ファイルと一緒に、まとめExcelも出力する</label>
         <label class="chk" style="margin-top:8px;"><input type="radio" name="sumMode" id="sumModeOnly"> まとめExcelだけを出力する（個別ファイルは出力しない）</label>
