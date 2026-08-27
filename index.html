@@ -105,8 +105,10 @@
   <div class="card">
     <h2><span class="num">2</span>設定</h2>
     <label class="chk"><input id="useDate" type="checkbox"> 試合日を指定する（表記シートの「歳」列にその日の年齢を入れる）</label>
+    <label class="chk" style="margin-top:10px;"><input id="perFileDate" type="checkbox" disabled> ファイルごとに試合日を指定する（複数の試合日が混ざっているときに使う）</label>
     <input id="matchDate" type="date" class="dateinput" disabled style="margin-top:8px;">
-    <div class="hint">チェックして日付を選ぶと、その日時点の年齢が入ります。指定しない場合は「歳」列を変更しません。</div>
+    <div class="hint" id="matchDateHint">チェックして日付を選ぶと、その日時点の年齢が入ります。指定しない場合は「歳」列を変更しません。</div>
+    <div class="hint" id="perFileDateHint" style="display:none;">「ファイルごとに指定する」をONにすると、下のファイル一覧にファイルごとの日付欄が出ます。日付を入れなかったファイルは「歳」列を変更しません。</div>
     <input id="ageNote" type="text" class="dateinput" value="※年齢は試合当日のもの" disabled style="margin-top:8px; width:100%; max-width:400px;">
     <div class="hint">「歳」列の下に入れる注記の文言（自由に書き換え可）。例：※年齢は本大会開幕時のもの／※年齢は7月11日時点のもの。空欄にすると注記を入れません。</div>
     <div class="setq" style="margin-top:18px;">経歴シートを削除しますか？</div>
@@ -227,10 +229,19 @@ await micropip.install(["openpyxl","et_xmlfile"])
 function updateRun(){ runBtn.disabled = !(ready && selected.length>0); }
 function showFiles(){
   const ul=$("files"); ul.innerHTML="";
+  const perFile = $("useDate").checked && $("perFileDate").checked;
   selected.forEach((f,i)=>{
     const li=document.createElement("li");
     const left=document.createElement("span"); left.textContent=f.name;
     const meta=document.createElement("span"); meta.className="meta";
+    if(perFile){
+      const di=document.createElement("input");
+      di.type="date"; di.className="dateinput"; di.title="このファイルの試合日";
+      di.style.padding="5px 8px"; di.style.fontSize="12.5px";
+      if(f.matchDate) di.value=f.matchDate;
+      di.oninput=()=>{ f.matchDate = di.value || null; };
+      meta.appendChild(di);
+    }
     const kb=document.createElement("span"); kb.textContent=Math.round(f.size/1024)+" KB";
     const x=document.createElement("button"); x.className="rm"; x.textContent="×"; x.title="このファイルを外す";
     x.onclick=()=>{ selected.splice(i,1); showFiles(); updateRun(); };
@@ -251,7 +262,24 @@ fileInput.onchange=e=>{ addFiles(e.target.files); fileInput.value=""; };
 ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("hover");}));
 ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hover");}));
 drop.addEventListener("drop",e=>{ addFiles(e.dataTransfer.files); });
-$("useDate").onchange=()=>{ const on=$("useDate").checked; $("matchDate").disabled=!on; $("ageNote").disabled=!on; };
+$("useDate").onchange=()=>{
+  const on=$("useDate").checked;
+  $("perFileDate").disabled=!on;
+  if(!on) $("perFileDate").checked=false;
+  const perFile=on && $("perFileDate").checked;
+  $("matchDate").disabled = !on || perFile;
+  $("ageNote").disabled=!on;
+  $("matchDateHint").style.display = perFile ? "none" : "";
+  $("perFileDateHint").style.display = perFile ? "" : "none";
+  showFiles();
+};
+$("perFileDate").onchange=()=>{
+  const perFile=$("useDate").checked && $("perFileDate").checked;
+  $("matchDate").disabled = !$("useDate").checked || perFile;
+  $("matchDateHint").style.display = perFile ? "none" : "";
+  $("perFileDateHint").style.display = perFile ? "" : "none";
+  showFiles();
+};
 $("sumHyoki").onchange=()=>{ $("sumHyokiOpts").style.display = $("sumHyoki").checked ? "" : "none"; };
 $("colorNew").onchange=()=>{ $("colorNewOpts").style.display = $("colorNew").checked ? "" : "none"; };
 (function initSeason(){
@@ -288,7 +316,9 @@ runBtn.onclick=async()=>{
   const note = $("ageNote").value;
   const sumHyoki = $("sumHyoki").checked;
   const hyokiOnly = sumHyoki && $("sumModeOnly").checked;
-  const md = ($("useDate").checked && $("matchDate").value) ? $("matchDate").value : null;
+  const useDate = $("useDate").checked;
+  const perFileDate = useDate && $("perFileDate").checked;
+  const mdGlobal = (useDate && !perFileDate && $("matchDate").value) ? $("matchDate").value : null;
   const colorNew = $("colorNew").checked;
   const newSummer = colorNew ? ($("newSummer").value || null) : null;
   const newWinter = colorNew ? ($("newWinter").value || null) : null;
@@ -303,6 +333,7 @@ runBtn.onclick=async()=>{
       const buf=new Uint8Array(await f.arrayBuffer());
       const outName=procName(f.name);
       const tabCode = f.name.replace(/\.xlsx$/i, "").split("_")[0];
+      const md = perFileDate ? (f.matchDate || null) : mdGlobal;
       log(procOne(outName, buf, delK, md, delW, note, sumHyoki, tabCode, colorNew, newSummer, newWinter, stripJoshi));
       if(!hyokiOnly){
         $("dl").appendChild(download(outName, toU8(getOut(outName))));
