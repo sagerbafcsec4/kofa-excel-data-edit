@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#6d28d9">
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%0A%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236d28d9%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%238b5cf6%22/%3E%3C/linearGradient%3E%3C/defs%3E%0A%3Crect%20x%3D%222%22%20y%3D%222%22%20width%3D%2228%22%20height%3D%2228%22%20rx%3D%227%22%20fill%3D%22url%28%23g%29%22/%3E%0A%3Cg%20fill%3D%22none%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20opacity%3D%220.92%22%3E%0A%3Crect%20x%3D%226%22%20y%3D%226%22%20width%3D%2212.5%22%20height%3D%2212.5%22%20rx%3D%222%22/%3E%0A%3Cline%20x1%3D%226%22%20y1%3D%2210.2%22%20x2%3D%2218.5%22%20y2%3D%2210.2%22/%3E%0A%3Cline%20x1%3D%226%22%20y1%3D%2214.4%22%20x2%3D%2218.5%22%20y2%3D%2214.4%22/%3E%0A%3Cline%20x1%3D%2210.2%22%20y1%3D%226%22%20x2%3D%2210.2%22%20y2%3D%2218.5%22/%3E%0A%3Cline%20x1%3D%2214.4%22%20y1%3D%226%22%20x2%3D%2214.4%22%20y2%3D%2218.5%22/%3E%0A%3C/g%3E%0A%3Cg%20transform%3D%22rotate%2845%2021%2021%29%22%3E%0A%3Crect%20x%3D%2219.1%22%20y%3D%2212.8%22%20width%3D%223.8%22%20height%3D%2212%22%20rx%3D%221.6%22%20fill%3D%22%23ffffff%22/%3E%0A%3Crect%20x%3D%2219.1%22%20y%3D%2212.8%22%20width%3D%223.8%22%20height%3D%223.2%22%20rx%3D%221.6%22%20fill%3D%22%23e9defb%22/%3E%0A%3Cpolygon%20points%3D%2219.1%2C24.8%2022.9%2C24.8%2021%2C28.4%22%20fill%3D%22%23ffffff%22/%3E%0A%3Cpolygon%20points%3D%2220.2%2C26.5%2021.8%2C26.5%2021%2C28.4%22%20fill%3D%22%233b1d80%22/%3E%0A%3C/g%3E%0A%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2032%2032%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Crect%20x%3D%221%22%20y%3D%221%22%20width%3D%2230%22%20height%3D%2230%22%20rx%3D%228%22%20fill%3D%22%236d28d9%22/%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%227%22%20y%3D%227%22%20width%3D%2212%22%20height%3D%2212%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M7%2011h12M7%2015h12M11%207v12M15%207v12%22/%3E%3Cpath%20d%3D%22M25%2015l-7%207-3%201%201-3%207-7z%22/%3E%3C/g%3E%3C/svg%3E">
 <title>Excelデータ加工</title>
 <style>
   :root{
@@ -74,30 +74,54 @@
   .spin{ display:inline-block; width:14px; height:14px; border:2px solid #d8d2e8; border-top-color:var(--p1); border-radius:50%; animation:s .8s linear infinite; vertical-align:-2px; }
   @keyframes s{ to{ transform:rotate(360deg); } }
   .safe{ font-size:.82rem; color:var(--muted); margin-top:12px; padding-top:10px; border-top:1px dashed var(--line); }
+
+  /* ===== kofa シリーズ共通 v1（2026-10-01・5サイト共通の見た目の決まり） ===== */
+  /* 道具の色(--tool)は「上の帯・アイコン・番号の丸・主ボタン/選択中タブ」だけ。文字は 22/16/14/13、角の丸みは 8/12/丸 */
+  .backlink{ margin-left:auto; align-self:center; flex:0 0 auto; font-size:13px; color:#475569; text-decoration:none; background:#fff; border:1px solid #e2e8f0; border-radius:999px; padding:5px 12px; white-space:nowrap; }
+  .backlink:hover{ color:#0f172a; border-color:#cbd5e1; }
+  details.more{ margin-top:10px; font-size:13px; color:#475569; }
+  details.more summary{ cursor:pointer; color:#475569; }
+  details.more p{ margin:6px 0 0; line-height:1.7; }
+
+  :root{ --tool:#6d28d9; --tool-bar:#6d28d9; --tool-soft:#f1ecfb; --bg:#f8fafc; --line:#e2e8f0; --muted:#475569; --ink:#0f172a; }
+  body{ background:var(--bg); font-size:14px; }
+  .topbar{ height:4px; background:var(--tool-bar); }
+  header{ margin:8px 0 20px; }
+  header h1{ font-size:22px; font-weight:700; }
+  header .sub{ font-size:14px; margin:2px 0 0; color:var(--muted); }
+  .logo{ box-shadow:none; border-radius:12px; }
+  .card{ border-radius:12px; box-shadow:none; }
+  h2{ font-size:16px; }
+  .num{ background:var(--tool); box-shadow:none; }
+  button.primary{ background:var(--tool); box-shadow:none; }
+  .zipbtn{ background:var(--tool); box-shadow:none; }
+  .setblock{ background:#fff; border-color:var(--line); }
+  .setblock-title{ color:var(--ink); font-size:14px; }
+  .setblock-title .dot{ background:var(--tool-bar); }
+  #drop{ border-color:#cbd5e1; }
+  .field label,.setq,.dropwrap .lbl,label.chk,.labelrow .prov,#drop,button.primary{ font-size:14px; }
+  .hint{ font-size:13px; }
+  button.small,.dict,details.detail summary,.backlink{ font-size:13px; }
+  button.primary,.dict,button.small,.dateinput,.fileline,.labelrow .prov,#log,.alert,.warns,.zipbtn,table.matches select{ border-radius:8px; }
+  .card,.setblock,#drop,.logo{ border-radius:12px; }
+  #log{ background:#f8fafc; }
+
+  #drop:hover,#drop.hover{ border-color:var(--tool-bar); background:var(--tool-soft); color:var(--tool); }
+  ul#files li{ border-radius:8px; font-size:14px; } ul#files .meta{ font-size:13px; }
+  .dl a{ border-radius:8px; font-size:14px; } .folderbtn{ border-radius:8px; font-size:14px; } .zipbtn{ font-size:14px; }
+  #colorNewOpts,#sumHyokiOpts{ border-radius:12px !important; }
 </style>
 </head>
 <body>
 <div class="topbar"></div>
 <div class="wrap">
   <header>
-    <div class="logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d28d9"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
-<rect x="2" y="2" width="28" height="28" rx="7" fill="url(#g)"/>
-<g fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.92">
-<rect x="6" y="6" width="12.5" height="12.5" rx="2"/>
-<line x1="6" y1="10.2" x2="18.5" y2="10.2"/>
-<line x1="6" y1="14.4" x2="18.5" y2="14.4"/>
-<line x1="10.2" y1="6" x2="10.2" y2="18.5"/>
-<line x1="14.4" y1="6" x2="14.4" y2="18.5"/>
-</g>
-<g transform="rotate(45 21 21)">
-<rect x="19.1" y="12.8" width="3.8" height="12" rx="1.6" fill="#ffffff"/>
-<rect x="19.1" y="12.8" width="3.8" height="3.2" rx="1.6" fill="#e9defb"/>
-<polygon points="19.1,24.8 22.9,24.8 21,28.4" fill="#ffffff"/>
-<polygon points="20.2,26.5 21.8,26.5 21,28.4" fill="#3b1d80"/>
-</g>
-</svg></div>
-    <h1>Excelデータ加工</h1>
+    <div class="logo"><svg aria-hidden="true" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="30" height="30" rx="8" fill="#6d28d9"/><g fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="12" height="12" rx="2"/><path d="M7 11h12M7 15h12M11 7v12M15 7v12"/><path d="M25 15l-7 7-3 1 1-3 7-7z"/></g></svg></div>
+    <div>
+      <h1>Excelデータ加工</h1>
+      <p class="sub">サッカー記録のExcelを、納品用のレイアウトに整えます（数字は書き換えません）</p>
+    </div>
+    <a class="backlink" href="https://kofa-portal.pages.dev/">← ポータルへ</a>
   </header>
 
   <div class="card">
@@ -168,7 +192,7 @@
     <div id="zip"></div>
     <div id="dl" class="dl"></div>
     <details class="detail" id="detail"><summary>処理の詳細を表示</summary><div id="log"></div></details>
-    <div class="safe">やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記シートの「歳」列に年齢計算式を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。新加入の色付けをONにしたときは、表記・経歴シートの該当行に<b>背景色を付けるだけ</b>です（値は変わりません）。<b>「女子」削除をONにしたときのみ</b>、全シートの中身とシート名から「女子」という文字だけを取り除きます（この変更は自動照合の対象外です）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</div>
+    <details class="more safe"><summary>数字は書き換えず、ファイルは外へ送りません（詳しく）</summary><p>やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記シートの「歳」列に年齢計算式を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。新加入の色付けをONにしたときは、表記・経歴シートの該当行に<b>背景色を付けるだけ</b>です（値は変わりません）。<b>「女子」削除をONにしたときのみ</b>、全シートの中身とシート名から「女子」という文字だけを取り除きます（この変更は自動照合の対象外です）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</p></details>
   </div>
 </div>
 
