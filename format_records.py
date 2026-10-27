@@ -727,13 +727,21 @@ def entry_club(entry):
 
 
 def is_youth_promotion(career_text, youth_text):
-    """下部組織からの昇格なら True(新加入として塗らない・2026-10-01 ユーザー指定)。
-    条件: 代表歴を除いた経歴が全部同じ1クラブで、かつ「主な下部組織」の最後のクラブも同じ。
-    例: 主な下部組織=ﾘｳﾞｧﾌﾟｰﾙ / 経歴=ﾘｳﾞｧﾌﾟｰﾙ(26年7月-) → 昇格。"""
+    """下部組織からの昇格なら True(新加入として塗らない)。次のどちらかで昇格とみなす。
+    (1) 代表歴を除いた経歴が全部同じ1クラブで、かつ「主な下部組織」の最後のクラブも同じ
+        (2026-10-01 ユーザー指定)。例: 主な下部組織=ﾘｳﾞｧﾌﾟｰﾙ / 経歴=ﾘｳﾞｧﾌﾟｰﾙ(26年7月-)
+    (2) 代表歴を除いた経歴が1件だけで、その開始が7月(=シーズン頭の7月1日からしかない)。
+        主な下部組織が空欄・「不明」でも昇格とみなす(2026-10-27 ユーザー指定)。
+        例: 主な下部組織=不明 / 経歴=ﾛﾝﾄﾞﾝ･ｼﾃｨ･ﾗｲｵﾈｾｽﾞ(26年7月-)"""
+    entries = [e for e in split_career(career_text) if not is_national_entry(e)]
+    if len(entries) == 1:
+        ym = entry_start_ym(entries[0])
+        if ym and ym[1] == 7:
+            return True
     if is_empty(youth_text):
         return False
     youths = [s.strip() for s in re.split(r"[､、,，]", str(youth_text)) if s.strip()]
-    clubs = [entry_club(e) for e in split_career(career_text) if not is_national_entry(e)]
+    clubs = [entry_club(e) for e in entries]
     if not youths or not clubs:
         return False
     keys = {_club_key(c) for c in clubs}
@@ -789,7 +797,7 @@ def detect_new_players(wb, log=None):
         if log:
             log("  [新加入] 経歴シートの『フルネーム』『経歴』列が見つからず判定できません")
         return {}
-    youth_col = _find_header_col(grid, maxc, "主な下部組織")   # 無ければ昇格の除外はしない
+    youth_col = _find_header_col(grid, maxc, "主な下部組織")   # 無ければ(1)の判定だけ使わない
     last = last_data_row(grid, 1, maxc)
     marks, names = {}, {"summer": [], "winter": []}
     promoted = []
@@ -802,7 +810,7 @@ def detect_new_players(wb, log=None):
             continue
         for cut, kind in cuts:
             if ym >= cut:
-                if youth_col and is_youth_promotion(cv, g(grid, r, youth_col)):
+                if is_youth_promotion(cv, g(grid, r, youth_col) if youth_col else None):
                     promoted.append(str(nm).strip())   # 区切り以降でも、昇格は塗らない
                     break
                 marks[str(nm).strip()] = kind
