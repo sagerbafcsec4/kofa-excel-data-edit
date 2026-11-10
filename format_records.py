@@ -1104,10 +1104,14 @@ def _cell_map(ws):
             if not is_empty(c.value)}
 
 
-def merged_file_name(md_no, code, wb):
-    md = str(md_no).strip() if md_no not in (None, "") else ""
-    if md:
-        return f"MD{md}_{team_name(wb) or code}データ.xlsx"
+def merged_file_name(label, code, wb):
+    """合体ファイルの名前。label は頭に付ける文字(リーグ戦なら画面側で "MD10" を作って渡す。
+    カップ戦などは「FA杯3回戦」のような自由入力がそのまま来る)。空なら「略号_合体」。"""
+    lab = str(label).strip() if label not in (None, "") else ""
+    for bad in '\\/:*?"<>|':
+        lab = lab.replace(bad, "")
+    if lab:
+        return f"{lab}_{team_name(wb) or code}データ.xlsx"
     return f"{code}_合体.xlsx"
 
 

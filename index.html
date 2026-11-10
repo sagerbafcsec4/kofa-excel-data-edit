@@ -143,10 +143,11 @@
     <h2><span class="num">2</span>設定</h2>
 
     <div class="setblock">
-      <div class="setblock-title"><span class="dot"></span>節</div>
-      <div class="setq">第何節のデータですか？（合体したファイルの名前に使います）</div>
-      <label class="chk">第 <input id="mdNo" type="text" inputmode="numeric" class="dateinput" style="width:5em;" placeholder="10"> 節</label>
-      <div class="hint">例：10 と入れると「MD10_ブライトンデータ.xlsx」になります。</div>
+      <div class="setblock-title"><span class="dot"></span>節・大会</div>
+      <div class="setq">どの試合のデータですか？（合体したファイルの名前の頭に使います）</div>
+      <label class="chk"><input type="radio" name="labelMode" id="labelLeague" checked> リーグ戦：第 <input id="mdNo" type="text" inputmode="numeric" class="dateinput" style="width:5em;" placeholder="10"> 節</label>
+      <label class="chk" style="margin-top:8px;"><input type="radio" name="labelMode" id="labelCustom"> カップ戦など（自由入力）：<input id="labelText" type="text" class="dateinput" style="width:14em;" placeholder="FA杯3回戦" disabled></label>
+      <div class="hint">例：リーグ戦で 10 →「MD10_ブライトンデータ.xlsx」／自由入力で「FA杯3回戦」→「FA杯3回戦_ブライトンデータ.xlsx」。「_チーム名データ」は自動で付きます。</div>
     </div>
 
     <div class="setblock">
@@ -370,6 +371,8 @@ $("perFileDate").onchange=()=>{
   $("perFileDateHint").style.display = perFile ? "" : "none";
   showFiles();
 };
+function syncLabelMode(){ const c=$("labelCustom").checked; $("labelText").disabled=!c; $("mdNo").disabled=c; }
+$("labelLeague").onchange=syncLabelMode; $("labelCustom").onchange=syncLabelMode;
 $("sumHyoki").onchange=()=>{ $("sumHyokiOpts").style.display = $("sumHyoki").checked ? "" : "none"; };
 $("colorNew").onchange=()=>{ $("colorNewOpts").style.display = $("colorNew").checked ? "" : "none"; };
 (function initSeason(){
@@ -443,7 +446,10 @@ runBtn.onclick=async()=>{
   const singles=selected.filter(f=>!merged.has(f.name) && kinds[f.name]!=="roster");
   const total=pairs.length+singles.length;
   if(rosters.length) log("選手表: "+rosters.map(f=>f.name).join("、"));
-  const mdNo=$("mdNo").value.trim();
+  // 名前の頭: リーグ戦は「MD+節番号」、カップ戦などは自由入力をそのまま使う
+  const mdNo = $("labelCustom").checked
+    ? $("labelText").value.trim()
+    : ($("mdNo").value.trim() ? "MD" + $("mdNo").value.trim() : "");
   const mergeOne=pyodide.globals.get("merge_one");
   for(const p of pairs){
     log("\n===== 合体 "+p.code+"：公式戦="+p.off.name+" ／ リーグ戦="+p.lea.name+" =====");
