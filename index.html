@@ -203,7 +203,7 @@
       <div class="srow">
         <div class="sl">
           <label class="chk"><input id="colorNew" type="checkbox"> 新加入選手に色を付ける</label>
-          <div id="colorNewOpts" style="display:none; margin-top:10px; padding:12px 14px; background:var(--soft); border:1px solid var(--line); border-radius:12px;">
+          <div id="colorNewOpts" style="margin-top:10px; padding:12px 14px; background:var(--soft); border:1px solid var(--line); border-radius:12px;">
             <select id="seasonSel" class="dateinput"></select>
             <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:10px;">
               <label class="chk" style="gap:8px;"><span class="swatch" style="background:#ccffff;"></span>夏（水色）<input id="newSummer" type="month" class="dateinput"><span style="color:var(--muted);">以降</span></label>
@@ -415,7 +415,6 @@ $("perFileDate").onchange=()=>{
 function syncLabelMode(){ const c=$("labelCustom").checked; $("labelText").disabled=!c; $("mdNo").disabled=c; }
 $("labelLeague").onchange=syncLabelMode; $("labelCustom").onchange=syncLabelMode;
 $("sumHyoki").onchange=()=>{ $("sumHyokiOpts").style.display = $("sumHyoki").checked ? "" : "none"; };
-$("colorNew").onchange=()=>{ $("colorNewOpts").style.display = $("colorNew").checked ? "" : "none"; };
 (function initSeason(){
   const sel=$("seasonSel"), now=new Date();
   const cur = (now.getMonth()+1 >= 7) ? now.getFullYear() : now.getFullYear()-1;
