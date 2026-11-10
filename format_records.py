@@ -630,10 +630,29 @@ def copy_ws_into(src, dst_wb, title):
                 nc.alignment = copy(cell.alignment)
                 nc.number_format = cell.number_format
                 nc.protection = copy(cell.protection)
+            if cell.hyperlink is not None:
+                nc.hyperlink = copy(cell.hyperlink)
     for mc in list(src.merged_cells.ranges):
         dst.merge_cells(str(mc))
+    # 見出しの固定・非表示の行列・条件付き書式も引き継ぐ(2026-11-10 合体機能で追加)
+    try:
+        dst.freeze_panes = src.freeze_panes
+        for k, cd in src.column_dimensions.items():
+            if cd.hidden:
+                dst.column_dimensions[k].hidden = True
+        for idx, rd in src.row_dimensions.items():
+            if rd.hidden:
+                dst.row_dimensions[idx].hidden = True
+        for cf in src.conditional_formatting:
+            for rule in cf.rules:
+                dst.conditional_formatting.add(str(cf.sqref), rule)
+        if src.sheet_properties.tabColor is not None:
+            dst.sheet_properties.tabColor = copy(src.sheet_properties.tabColor)
+    except Exception:
+        pass
     if src.print_area:
-        dst.print_area = src.print_area
+        # src.print_area は「'元のシート名'!$A$1:$B$2」の形。新しいシート名で付け直すため範囲だけ渡す
+        dst.print_area = [p.split("!")[-1] for p in str(src.print_area).split(",")]
     # ページ設定(用紙サイズ/向き/ページに合わせる/余白)を引き継ぎ、印刷レイアウトを元表記と同じにする
     try:
         dst.page_setup.orientation = src.page_setup.orientation
@@ -996,6 +1015,207 @@ def process_checked(wb, log):
         raise ValueError("安全チェック失敗（セル値の変更を検知したため中止）: " + " / ".join(problems))
     log("  ✔ 安全チェック合格：セルの値は不変（削除・書式のみ）")
     return wb
+
+# ============================================================
+# 公式戦＋リーグ戦の合体(2026-11-10 追加)
+#   手作業でやっていた「公式戦ファイルを土台に、表記をリーグ戦のものに差し替え、
+#   リーグ戦のシーズン記録・出場記録を『ﾌﾟﾚﾐｱ…』の名前で差し込み、
+#   最後に経歴(プレミアは選手表のタブ)を置く」を自動化する。
+#   ★値は1つも書き換えない。シートを写して並べ替えるだけ。
+#     出力前に全シートを写し元と1セルずつ照合し、違いがあれば中止する。
+# ============================================================
+# リーグ戦ファイルの大会名 -> シート名の頭に付ける呼び名(上から順に「含むか」で判定)
+LEAGUE_PREFIX = [
+    ("プレミアリーグ", "ﾌﾟﾚﾐｱ"),
+    ("ラ・リーガ", "ﾘｰｶﾞ"),
+    ("ラリーガ", "ﾘｰｶﾞ"),        # 「リーガ」単独だとブンデスリーガも当たるため使わない
+    ("エールディビジ", "ｴｰﾙ"),
+    ("スーパーリーグ", "WSL"),   # 女子スーパーリーグ(「女子」カット後も当たるように)
+    ("WSL", "WSL"),
+]
+# 過去の配置図の並び: リーグ戦 -> 欧州大会 -> 国内カップ(その他)
+EURO_CODES = {"UCL", "CL", "UEL", "EL", "UECL", "ECL", "UWCL", "WCL"}
+
+
+def _first_sheet(wb, pred):
+    return next((w for w in wb.worksheets if pred(w)), None)
+
+
+def is_roster_book(wb):
+    """選手表(プレミアの経歴ファイル)か。記録シートが無く、2行目に『統一表記』『選手紹介』を持つタブがある本。"""
+    if any(is_season_sheet(w) or is_appearance_sheet(w) for w in wb.worksheets):
+        return False
+    return any({"統一表記", "選手紹介"} <= _row_set(w, 2, 20) for w in wb.worksheets)
+
+
+def competition_name(wb):
+    """表記(無ければシーズン記録)のA1『ﾁｰﾑ ( 26/27 大会名 )』から大会名を返す。公式戦なら ""。"""
+    ws = _first_sheet(wb, is_hyoki_sheet) or _first_sheet(wb, is_season_sheet)
+    if ws is None:
+        return None
+    a1 = str(ws.cell(1, 1).value or "")
+    m = re.search(r"[（(](.*)[)）]", a1)
+    if not m:
+        return ""
+    inner = re.sub(r"\d{2,4}\s*/\s*\d{2,4}", "", m.group(1))
+    return inner.strip(" 　")
+
+
+def team_name(wb):
+    """表記A1の「(」より前=チーム名(全角のまま)。"""
+    ws = _first_sheet(wb, is_hyoki_sheet) or _first_sheet(wb, is_season_sheet)
+    a1 = str(ws.cell(1, 1).value or "") if ws is not None else ""
+    return re.split(r"[（(]", a1, 1)[0].strip(" 　")
+
+
+def classify_book(wb):
+    """'roster'(選手表) / 'league'(リーグ戦) / 'official'(公式戦) / 'other' を返す。"""
+    if is_roster_book(wb):
+        return "roster"
+    comp = competition_name(wb)
+    if comp is None:
+        return "other"
+    return "league" if comp else "official"
+
+
+def league_prefix(comp, log=None):
+    for key, pre in LEAGUE_PREFIX:
+        if key in str(comp):
+            return pre
+    pre = to_half_kana(comp)[:10]
+    if log:
+        log(f"  ⚠ 大会名『{comp}』の呼び名が未登録のため『{pre}』を頭に付けます(LEAGUE_PREFIX に追記すると固定できます)")
+    return pre
+
+
+def _formation_key(title, idx, league_titles, comp_order):
+    if title in league_titles:
+        grp = 0
+    else:
+        m = re.match(r"[A-Za-z]+", title)
+        grp = 1 if (m and m.group(0).upper() in EURO_CODES) else 2
+    comp = re.split(r"[\s(（]", title, 1)[0]
+    num = re.search(r"[(（]\s*(\d+)\s*[)）]", title)
+    return (grp, comp_order.setdefault(comp, idx), int(num.group(1)) if num else 0, idx)
+
+
+def _cell_map(ws):
+    return {(c.row, c.column): c.value for row in ws.iter_rows() for c in row
+            if not is_empty(c.value)}
+
+
+def merged_file_name(md_no, code, wb):
+    md = str(md_no).strip() if md_no not in (None, "") else ""
+    if md:
+        return f"MD{md}_{team_name(wb) or code}データ.xlsx"
+    return f"{code}_合体.xlsx"
+
+
+def merge_team(off, lea, roster_wbs, code, log):
+    """加工済みの 公式戦wb(off) と リーグ戦wb(lea) を1冊にする。off を土台に書き換えて返す。
+    roster_wbs: 選手表wbのリスト(空なら経歴シートを使う)。"""
+    comp = competition_name(lea)
+    pre = league_prefix(comp, log)
+    log(f"[合体] 大会『{comp}』 -> 頭に『{pre}』")
+    o_season = _first_sheet(off, is_season_sheet)
+    o_app = _first_sheet(off, is_appearance_sheet)
+    o_hyoki = _first_sheet(off, is_hyoki_sheet)
+    l_season = _first_sheet(lea, is_season_sheet)
+    l_app = _first_sheet(lea, is_appearance_sheet)
+    l_hyoki = _first_sheet(lea, is_hyoki_sheet)
+    miss = [n for n, w in (("公式戦のシーズン記録", o_season), ("公式戦の出場記録", o_app),
+                           ("リーグ戦のシーズン記録", l_season), ("リーグ戦の出場記録", l_app),
+                           ("リーグ戦の表記", l_hyoki)) if w is None]
+    if miss:
+        raise ValueError("合体できません(見つからないシート): " + "、".join(miss))
+    # 照合用に「出力シート名 -> 写し元の値」を控える
+    expect = []   # (出力シート名, 写し元の値)
+    # 経歴: 選手表に該当タブがあればそれを使い経歴シートは消す。無ければ公式戦の経歴を残す
+    r_ws = None
+    for rwb in roster_wbs or []:
+        r_ws = next((w for w in rwb.worksheets if w.title.strip().upper() == str(code).strip().upper()), None)
+        if r_ws is not None:
+            break
+    if roster_wbs and r_ws is None:
+        log(f"  ⚠ 選手表に『{code}』のタブが見つからないため、公式戦の経歴シートを使います")
+    o_keireki = [w for w in off.worksheets if is_keireki_sheet(w)]
+    # ---- 土台(公式戦)のシートを仕分ける ----
+    # 種類の判定は process_wb と同じ優先順位(出場記録 > シーズン > 表記 > 経歴 > 配置図)。
+    # 出場記録は列が多く「配置図」の条件にも当たるため、先に除いてから配置図を拾う。
+    def _is_formation_only(w):
+        return not (is_appearance_sheet(w) or is_season_sheet(w) or is_hyoki_sheet(w)
+                    or is_keireki_sheet(w)) and is_formation_sheet(w)
+    keep_formations = [w for w in off.worksheets if _is_formation_only(w)]
+    others = [w for w in off.worksheets
+              if w not in keep_formations and w not in (o_season, o_app, o_hyoki) and w not in o_keireki]
+    # ---- リーグ戦のシートを写す ----
+    s_title = _clean_tab(pre + to_half_kana(l_season.title))
+    a_title = _clean_tab(pre + to_half_kana(l_app.title))
+    hy_title = o_hyoki.title if o_hyoki is not None else l_hyoki.title
+    if o_hyoki is not None:
+        off.remove(o_hyoki)
+    new_season = copy_ws_into(l_season, off, s_title)
+    new_app = copy_ws_into(l_app, off, a_title)
+    new_hyoki = copy_ws_into(l_hyoki, off, hy_title)
+    log(f"  リーグ戦『{l_season.title}』->『{new_season.title}』 / 『{l_app.title}』->『{new_app.title}』を差し込み")
+    log(f"  表記をリーグ戦のものに差し替え『{new_hyoki.title}』")
+    expect += [(new_season.title, _cell_map(l_season)), (new_app.title, _cell_map(l_app)),
+               (new_hyoki.title, _cell_map(l_hyoki))]
+    expect += [(w.title, _cell_map(w)) for w in [o_season, o_app] + keep_formations + others]
+    # 経歴
+    tail = []
+    if r_ws is not None:
+        for w in o_keireki:
+            off.remove(w)
+            log(f"  経歴シート『{w.title}』-> 削除(選手表を使うため)")
+        t = copy_ws_into(r_ws, off, _clean_tab(r_ws.title))
+        tail.append(t)
+        expect.append((t.title, _cell_map(r_ws)))
+        log(f"  選手表のタブ『{r_ws.title}』を最後尾に差し込み")
+    else:
+        tail += o_keireki
+        expect += [(w.title, _cell_map(w)) for w in o_keireki]
+        if o_keireki:
+            log(f"  経歴シート『{o_keireki[0].title}』を最後尾に残す")
+        else:
+            log("  ⚠ 経歴シートも選手表のタブも無いため、経歴なしで出力します")
+    # ---- 過去の配置図の並べ替え(リーグ -> 欧州 -> 国内カップ) ----
+    league_titles = {w.title for w in lea.worksheets if _is_formation_only(w)}
+    order = {}
+    keep_formations = sorted(keep_formations,
+                             key=lambda w: _formation_key(w.title, keep_formations.index(w), league_titles, order))
+    if keep_formations:
+        log("  配置図の並び: " + " / ".join(w.title for w in keep_formations))
+    final = [o_season, new_season, o_app, new_app] + keep_formations + [new_hyoki] + others + tail
+    off._sheets = final
+    for i, w in enumerate(off.worksheets):
+        w.sheet_view.tabSelected = (i == 0)
+    off.active = 0
+    # ---- 照合 ----
+    verify_merge(off, expect, [w.title for w in final])
+    log(f"  ✔ 合体の照合に合格: {len(final)}シート・全セルの値が写し元と一致")
+    return off
+
+
+def verify_merge(wb, expect, titles):
+    probs = []
+    if len(set(titles)) != len(titles) or len(set(wb.sheetnames)) != len(wb.sheetnames):
+        probs.append(f"同じシートが二重に並んでいる: {titles}")
+    if wb.sheetnames != titles:
+        probs.append(f"シートの並びが想定と違う: {wb.sheetnames}")
+    names = [t for t, _ in expect]
+    if sorted(names) != sorted(wb.sheetnames):
+        probs.append(f"シートの数が合わない: 出力{len(wb.sheetnames)} / 写し元{len(names)}")
+    for t, src in expect:
+        if t not in wb.sheetnames:
+            probs.append(f"『{t}』が出力に無い"); continue
+        got = _cell_map(wb[t])
+        if got != src:
+            diff = [k for k in set(got) | set(src) if got.get(k) != src.get(k)]
+            probs.append(f"『{t}』の値が写し元と{len(diff)}か所違う(例 {sorted(diff)[:3]})")
+    if probs:
+        raise ValueError("安全チェック失敗（合体で値の違いを検知したため中止）: " + " / ".join(probs))
+
 
 def process(path, log):
     return process_checked(openpyxl.load_workbook(path), log)
