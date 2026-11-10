@@ -53,6 +53,10 @@
   .setblock-title .dot{ width:9px; height:9px; border-radius:50%; background:var(--grad); flex:0 0 auto; }
   .setblock .setq:first-child{ margin-top:0 !important; }
   .hint{ font-size:.8rem; color:var(--muted); margin:4px 0 0; }
+  details.howtobox{ margin:-8px 2px 16px; }
+  details.howtobox summary{ cursor:pointer; color:var(--muted); font-size:13px; }
+  details.howtobox[open] summary{ margin-bottom:8px; }
+  details.howtobox .hint{ margin:2px 0 0; }
   ul.howto{ margin:0 0 6px; padding:12px 16px 12px 34px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:14px; line-height:1.7; color:var(--ink); }
   ul.howto li{ margin:2px 0; }
   .dateinput{ font:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); accent-color:var(--p1); }
@@ -126,14 +130,18 @@
     <a class="backlink" href="https://kofa-portal.pages.dev/">← ポータルへ</a>
   </header>
 
-  <div class="card">
-    <h2><span class="num">1</span>Excelファイルを読み込む（.xlsx・複数可）</h2>
+  <details class="howtobox">
+    <summary>使い方（入れるもの・できあがり・経歴）</summary>
     <ul class="howto">
       <li><b>入れるもの</b>：同じチームの<b>公式戦</b>と<b>リーグ戦</b>のファイル（何チーム分でも一度に入れてOK）。プレミアは<b>選手表</b>（例「26_27EPL選手表」）も一緒に入れる</li>
-      <li><b>できあがり</b>：チームごとに1冊。公式戦を土台に、表記をリーグ戦のものに差し替え、リーグ戦の記録を「ﾌﾟﾚﾐｱｼｰｽﾞﾝ記録」「ﾌﾟﾚﾐｱ出場記録」のような名前で差し込む。名前は「MD10_ブライトンデータ.xlsx」（節を空欄にすると「BHA_合体.xlsx」）</li>
+      <li><b>できあがり</b>：チームごとに1冊。公式戦を土台に、表記をリーグ戦のものに差し替え、リーグ戦の記録を「ﾌﾟﾚﾐｱｼｰｽﾞﾝ記録」「ﾌﾟﾚﾐｱ出場記録」のような名前で差し込む</li>
       <li><b>経歴</b>：選手表を入れると、経歴シートの代わりに選手表の同じ略号のタブを最後に入れる。入れなければ公式戦の経歴シートを残す</li>
     </ul>
-    <div class="hint" style="margin:0 0 12px;">組はファイル名の頭の略号（「BHA_」など）で作り、どちらが公式戦かは中身で見分けます。組にならないファイルは、1つずつ整えます（経歴シートは残します）。</div>
+    <div class="hint">組はファイル名の頭の略号（「BHA_」など）で作り、どちらが公式戦かは中身で見分けます。組にならないファイルは、1つずつ整えます（経歴シートは残します）。</div>
+  </details>
+
+  <div class="card">
+    <h2><span class="num">1</span>Excelファイルを読み込む（.xlsx・複数可）</h2>
     <div id="drop">ここに <strong>.xlsx</strong> をドラッグ＆ドロップ、またはクリックして選択
       <input id="file" type="file" accept=".xlsx" multiple hidden></div>
     <ul id="files"></ul>
