@@ -54,8 +54,16 @@
   .setblock .setq:first-child{ margin-top:0 !important; }
   .hint{ font-size:.8rem; color:var(--muted); margin:4px 0 0; }
   details.howtobox{ margin:-8px 2px 16px; }
-  details.howtobox summary{ cursor:pointer; color:var(--muted); font-size:13px; }
-  details.howtobox[open] summary{ margin-bottom:8px; }
+  details.howtobox summary{ cursor:pointer; list-style:none; display:inline-flex; align-items:center; gap:8px;
+    color:var(--ink); font-size:14px; font-weight:700; background:#fff; border:1px solid #cbd5e1;
+    border-radius:999px; padding:6px 14px 6px 10px; box-shadow:rgba(15,23,42,.06) 0 1px 3px; }
+  details.howtobox summary::-webkit-details-marker{ display:none; }
+  details.howtobox summary:hover{ border-color:#94a3b8; background:#f8fafc; }
+  details.howtobox summary .qi{ display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px;
+    border-radius:50%; background:var(--ink); color:#fff; font-size:12px; font-weight:800; }
+  details.howtobox summary .arr{ color:var(--muted); font-size:11px; transition:transform .15s; }
+  details.howtobox[open] summary .arr{ transform:rotate(90deg); }
+  details.howtobox[open] summary{ margin-bottom:10px; }
   details.howtobox .hint{ margin:2px 0 0; }
   ul.howto{ margin:0 0 6px; padding:12px 16px 12px 34px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:14px; line-height:1.7; color:var(--ink); }
   ul.howto li{ margin:2px 0; }
@@ -131,7 +139,7 @@
   </header>
 
   <details class="howtobox">
-    <summary>使い方（入れるもの・できあがり・経歴）</summary>
+    <summary><span class="qi">?</span>使い方（入れるもの・できあがり・経歴）<span class="arr">▶</span></summary>
     <ul class="howto">
       <li><b>入れるもの</b>：同じチームの<b>公式戦</b>と<b>リーグ戦</b>のファイル（何チーム分でも一度に入れてOK）。プレミアは<b>選手表</b>（例「26_27EPL選手表」）も一緒に入れる</li>
       <li><b>できあがり</b>：チームごとに1冊。公式戦を土台に、表記をリーグ戦のものに差し替え、リーグ戦の記録を「ﾌﾟﾚﾐｱｼｰｽﾞﾝ記録」「ﾌﾟﾚﾐｱ出場記録」のような名前で差し込む</li>
