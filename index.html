@@ -149,14 +149,12 @@
       <div class="setblock-title"><span class="dot"></span>公式戦とリーグ戦の合体</div>
       <div class="setq">第何節のデータですか？（合体したファイルの名前に使います）</div>
       <label class="chk">第 <input id="mdNo" type="text" inputmode="numeric" class="dateinput" style="width:5em;" placeholder="10"> 節</label>
-      <div class="hint">同じチームの<b>公式戦</b>と<b>リーグ戦</b>のファイルを一緒に入れると、自動で1冊に合体します（ファイル名の頭の略号「BHA_」などで組を作り、どちらが公式戦かは中身で見分けます）。公式戦を土台に、表記をリーグ戦のものに差し替え、リーグ戦のシーズン記録・出場記録を「ﾌﾟﾚﾐｱｼｰｽﾞﾝ記録」「ﾌﾟﾚﾐｱ出場記録」のような名前で差し込みます。<br><b>経歴</b>：選手表（例「26_27EPL選手表」）も一緒に入れると、経歴シートの代わりに選手表の同じ略号のタブを最後に入れます。入れなければ公式戦の経歴シートを残します（下の「経歴シートを削除しますか？」は、合体のときは使いません）。<br>名前の例：「MD10_ブライトンデータ.xlsx」（節を空欄にすると「BHA_合体.xlsx」）。組にならないファイルは、今までどおり1つずつ整えます。</div>
+      <div class="hint">同じチームの<b>公式戦</b>と<b>リーグ戦</b>のファイルを一緒に入れると、自動で1冊に合体します（ファイル名の頭の略号「BHA_」などで組を作り、どちらが公式戦かは中身で見分けます）。公式戦を土台に、表記をリーグ戦のものに差し替え、リーグ戦のシーズン記録・出場記録を「ﾌﾟﾚﾐｱｼｰｽﾞﾝ記録」「ﾌﾟﾚﾐｱ出場記録」のような名前で差し込みます。<br><b>経歴</b>：選手表（例「26_27EPL選手表」）も一緒に入れると、経歴シートの代わりに選手表の同じ略号のタブを最後に入れます。入れなければ公式戦の経歴シートを残します。合体しないで1つずつ整えるときも、経歴シートは残します。<br>名前の例：「MD10_ブライトンデータ.xlsx」（節を空欄にすると「BHA_合体.xlsx」）。組にならないファイルは、今までどおり1つずつ整えます。</div>
     </div>
 
     <div class="setblock">
       <div class="setblock-title"><span class="dot"></span>細かい設定</div>
-      <div class="setq">経歴シートを削除しますか？</div>
-      <label class="chk"><input id="delK" type="checkbox"> 削除する</label>
-      <div class="setq" style="margin-top:18px;">表記シートの「体重(kg)」列を削除しますか？</div>
+      <div class="setq">表記シートの「体重(kg)」列を削除しますか？</div>
       <label class="chk"><input id="delW" type="checkbox" checked> 削除する</label>
       <div class="setq" style="margin-top:18px;">新加入選手に色を付けますか？</div>
       <label class="chk"><input id="colorNew" type="checkbox"> 色を付ける（表記シートと経歴シートの、新加入選手の行を塗る）</label>
@@ -395,7 +393,7 @@ runBtn.onclick=async()=>{
   logEl.textContent=""; $("dl").innerHTML=""; summaryEl.textContent=""; summaryEl.className="summary";
   $("alert").className="alert"; $("alert").innerHTML=""; $("zip").innerHTML="";
   const blocked=[], errored=[], outNames=[];
-  const delK=$("delK").checked;
+  const delK=false;   // 「経歴シートを削除」欄は 2026-11-10 に廃止（合体で自動判断するため）。1つずつ整えるときは常に残す
   const delW=$("delW").checked;
   const note = $("ageNote").value;
   const sumHyoki = $("sumHyoki").checked;
