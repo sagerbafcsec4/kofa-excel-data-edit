@@ -213,10 +213,6 @@
         </div>
         <div class="sr">経歴を見て、その年月以降に入った選手の行を塗ります。代表歴と下部組織からの昇格は数えません。シーズンを選ぶと年月が入ります。</div>
       </div>
-      <div class="srow">
-        <div class="sl"><label class="chk"><input id="stripJoshi" type="checkbox"> 「女子」の文字を削除する</label></div>
-        <div class="sr">全シートとシート名から「女子」だけを取ります。例：アーセナル女子 → アーセナル</div>
-      </div>
     </div>
 
     <div class="setblock">
@@ -247,7 +243,7 @@
     <div id="zip"></div>
     <div id="dl" class="dl"></div>
     <details class="detail" id="detail"><summary>処理の詳細を表示</summary><div id="log"></div></details>
-    <details class="more safe"><summary>数字は書き換えず、ファイルは外へ送りません（詳しく）</summary><p>やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記シートの「歳」列に年齢計算式を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。新加入の色付けをONにしたときは、表記・経歴シートの該当行に<b>背景色を付けるだけ</b>です（値は変わりません）。<b>「女子」削除をONにしたときのみ</b>、全シートの中身とシート名から「女子」という文字だけを取り除きます（この変更は自動照合の対象外です）。<b>公式戦とリーグ戦を合体するとき</b>は、シートを写して並べ替え・名前を付け直すだけで、値は変えません（出力前に、合体後の全シートを写し元と1セルずつ照合し、違いがあれば中止）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</p></details>
+    <details class="more safe"><summary>数字は書き換えず、ファイルは外へ送りません（詳しく）</summary><p>やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記シートの「歳」列に年齢計算式を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。新加入の色付けをONにしたときは、表記・経歴シートの該当行に<b>背景色を付けるだけ</b>です（値は変わりません）。また<b>常に</b>、全シートの中身とシート名から「女子」という文字だけを取り除きます（この変更は自動照合の対象外です）。<b>公式戦とリーグ戦を合体するとき</b>は、シートを写して並べ替え・名前を付け直すだけで、値は変えません（出力前に、合体後の全シートを写し元と1セルずつ照合し、違いがあれば中止）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</p></details>
   </div>
 </div>
 
@@ -455,7 +451,7 @@ runBtn.onclick=async()=>{
   const colorNew = $("colorNew").checked;
   const newSummer = colorNew ? ($("newSummer").value || null) : null;
   const newWinter = colorNew ? ($("newWinter").value || null) : null;
-  const stripJoshi = $("stripJoshi").checked;
+  const stripJoshi = true;  // 「女子」の文字は常に削除（2026-11-10・チェック欄は廃止）
   pyodide.globals.get("reset_outputs")();
   const procOne=pyodide.globals.get("process_one");
   const getOut=pyodide.globals.get("get_output");
