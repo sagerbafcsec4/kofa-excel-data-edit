@@ -53,6 +53,8 @@
   .setblock-title .dot{ width:9px; height:9px; border-radius:50%; background:var(--grad); flex:0 0 auto; }
   .setblock .setq:first-child{ margin-top:0 !important; }
   .hint{ font-size:.8rem; color:var(--muted); margin:4px 0 0; }
+  ul.howto{ margin:0 0 6px; padding:12px 16px 12px 34px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:14px; line-height:1.7; color:var(--ink); }
+  ul.howto li{ margin:2px 0; }
   .dateinput{ font:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); accent-color:var(--p1); }
   .dateinput:disabled{ background:#f3f3f7; color:#a7adba; cursor:not-allowed; }
   .summary{ font-size:.98rem; font-weight:700; margin:2px 0 10px; }
@@ -119,13 +121,19 @@
     <div class="logo"><svg aria-hidden="true" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="30" height="30" rx="8" fill="#6d28d9"/><g fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="12" height="12" rx="2"/><path d="M7 11h12M7 15h12M11 7v12M15 7v12"/><path d="M25 15l-7 7-3 1 1-3 7-7z"/></g></svg></div>
     <div>
       <h1>Excelデータ加工</h1>
-      <p class="sub">サッカー記録のExcelを、納品用のレイアウトに整えます（数字は書き換えません）</p>
+      <p class="sub">公式戦とリーグ戦のExcelを1冊にまとめ、納品用に整えます（数字は書き換えません）</p>
     </div>
     <a class="backlink" href="https://kofa-portal.pages.dev/">← ポータルへ</a>
   </header>
 
   <div class="card">
     <h2><span class="num">1</span>Excelファイルを読み込む（.xlsx・複数可）</h2>
+    <ul class="howto">
+      <li><b>入れるもの</b>：同じチームの<b>公式戦</b>と<b>リーグ戦</b>のファイル（何チーム分でも一度に入れてOK）。プレミアは<b>選手表</b>（例「26_27EPL選手表」）も一緒に入れる</li>
+      <li><b>できあがり</b>：チームごとに1冊。公式戦を土台に、表記をリーグ戦のものに差し替え、リーグ戦の記録を「ﾌﾟﾚﾐｱｼｰｽﾞﾝ記録」「ﾌﾟﾚﾐｱ出場記録」のような名前で差し込む。名前は「MD10_ブライトンデータ.xlsx」（節を空欄にすると「BHA_合体.xlsx」）</li>
+      <li><b>経歴</b>：選手表を入れると、経歴シートの代わりに選手表の同じ略号のタブを最後に入れる。入れなければ公式戦の経歴シートを残す</li>
+    </ul>
+    <div class="hint" style="margin:0 0 12px;">組はファイル名の頭の略号（「BHA_」など）で作り、どちらが公式戦かは中身で見分けます。組にならないファイルは、1つずつ整えます（経歴シートは残します）。</div>
     <div id="drop">ここに <strong>.xlsx</strong> をドラッグ＆ドロップ、またはクリックして選択
       <input id="file" type="file" accept=".xlsx" multiple hidden></div>
     <ul id="files"></ul>
@@ -133,6 +141,13 @@
 
   <div class="card">
     <h2><span class="num">2</span>設定</h2>
+
+    <div class="setblock">
+      <div class="setblock-title"><span class="dot"></span>節</div>
+      <div class="setq">第何節のデータですか？（合体したファイルの名前に使います）</div>
+      <label class="chk">第 <input id="mdNo" type="text" inputmode="numeric" class="dateinput" style="width:5em;" placeholder="10"> 節</label>
+      <div class="hint">例：10 と入れると「MD10_ブライトンデータ.xlsx」になります。</div>
+    </div>
 
     <div class="setblock">
       <div class="setblock-title"><span class="dot"></span>試合日</div>
@@ -143,13 +158,6 @@
       <div class="hint" id="perFileDateHint" style="display:none;">「ファイルごとに指定する」をONにすると、下のファイル一覧にファイルごとの日付欄が出ます。日付を入れなかったファイルは「歳」列を変更しません。</div>
       <input id="ageNote" type="text" class="dateinput" value="※年齢は試合当日のもの" disabled style="margin-top:8px; width:100%; max-width:400px;">
       <div class="hint">「歳」列の下に入れる注記の文言（自由に書き換え可）。例：※年齢は本大会開幕時のもの／※年齢は7月11日時点のもの。空欄にすると注記を入れません。</div>
-    </div>
-
-    <div class="setblock">
-      <div class="setblock-title"><span class="dot"></span>公式戦とリーグ戦の合体</div>
-      <div class="setq">第何節のデータですか？（合体したファイルの名前に使います）</div>
-      <label class="chk">第 <input id="mdNo" type="text" inputmode="numeric" class="dateinput" style="width:5em;" placeholder="10"> 節</label>
-      <div class="hint">同じチームの<b>公式戦</b>と<b>リーグ戦</b>のファイルを一緒に入れると、自動で1冊に合体します（ファイル名の頭の略号「BHA_」などで組を作り、どちらが公式戦かは中身で見分けます）。公式戦を土台に、表記をリーグ戦のものに差し替え、リーグ戦のシーズン記録・出場記録を「ﾌﾟﾚﾐｱｼｰｽﾞﾝ記録」「ﾌﾟﾚﾐｱ出場記録」のような名前で差し込みます。<br><b>経歴</b>：選手表（例「26_27EPL選手表」）も一緒に入れると、経歴シートの代わりに選手表の同じ略号のタブを最後に入れます。入れなければ公式戦の経歴シートを残します。合体しないで1つずつ整えるときも、経歴シートは残します。<br>名前の例：「MD10_ブライトンデータ.xlsx」（節を空欄にすると「BHA_合体.xlsx」）。組にならないファイルは、今までどおり1つずつ整えます。</div>
     </div>
 
     <div class="setblock">
