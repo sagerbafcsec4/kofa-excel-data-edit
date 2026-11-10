@@ -197,8 +197,8 @@
     <div class="setblock">
       <div class="setblock-title"><span class="dot"></span>細かい設定</div>
       <div class="srow">
-        <div class="sl"><label class="chk"><input id="delW" type="checkbox" checked> 表記の「体重(kg)」列を削除する</label></div>
-        <div class="sr"></div>
+        <div class="sl"><label class="chk"><input id="keepW" type="checkbox"> 表記の「体重(kg)」列を削除しない</label></div>
+        <div class="sr">ふだんは体重の列を削除します。残したいときだけチェック。</div>
       </div>
       <div class="srow">
         <div class="sl">
@@ -446,7 +446,7 @@ runBtn.onclick=async()=>{
   $("alert").className="alert"; $("alert").innerHTML=""; $("zip").innerHTML="";
   const blocked=[], errored=[], outNames=[];
   const delK=false;   // 「経歴シートを削除」欄は 2026-11-10 に廃止（合体で自動判断するため）。1つずつ整えるときは常に残す
-  const delW=$("delW").checked;
+  const delW=!$("keepW").checked;   // 既定は削除。「削除しない」にチェックしたときだけ残す
   const note = $("ageNote").value;
   const sumHyoki = $("sumHyoki").checked;
   const hyokiOnly = sumHyoki && $("sumModeOnly").checked;
