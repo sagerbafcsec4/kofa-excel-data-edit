@@ -1038,10 +1038,10 @@ LEAGUE_PREFIX = [
     ("プレミアリーグ", "ﾌﾟﾚﾐｱ"),
     ("ラ・リーガ", "ﾘｰｶﾞ"),
     ("ラリーガ", "ﾘｰｶﾞ"),        # 「リーガ」単独だとブンデスリーガも当たるため使わない
-    ("エールディビジ", "ｴｰﾙ"),
-    ("スーパーリーグ", "WSL"),   # 女子スーパーリーグ(「女子」カット後も当たるように)
-    ("WSL", "WSL"),
 ]
+# 上の2つ以外の大会はすべて「ﾘｰｸﾞ」で統一する(2026-11-18 持ち主指定。
+# 大会名をそのまま付けるとエールディヴィジ等でタブ名が31文字に収まらず切れていたため)
+LEAGUE_PREFIX_OTHER = "ﾘｰｸﾞ"
 # 過去の配置図の並び: リーグ戦 -> 欧州大会 -> 国内カップ(その他)
 EURO_CODES = {"UCL", "CL", "UEL", "EL", "UECL", "ECL", "UWCL", "WCL"}
 
@@ -1091,10 +1091,7 @@ def league_prefix(comp, log=None):
     for key, pre in LEAGUE_PREFIX:
         if key in str(comp):
             return pre
-    pre = to_half_kana(comp)[:10]
-    if log:
-        log(f"  ⚠ 大会名『{comp}』の呼び名が未登録のため『{pre}』を頭に付けます(LEAGUE_PREFIX に追記すると固定できます)")
-    return pre
+    return LEAGUE_PREFIX_OTHER
 
 
 def _formation_key(title, idx, league_titles, comp_order):
