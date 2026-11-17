@@ -132,7 +132,7 @@
   /* プレミア選手表の専用欄（2026-11-17） */
   #rosterDrop{ border:2px dashed #cbd5e1; border-radius:12px; padding:16px; text-align:center; color:var(--muted); cursor:pointer; transition:.15s; background:#fff; font-size:14px; }
   #rosterDrop:hover,#rosterDrop.hover{ border-color:var(--tool-bar); background:var(--tool-soft); color:var(--tool); }
-  .rosternow{ margin:0 0 10px; }
+  .rosternow{ margin:0 0 10px; } .rosternow:empty{ display:none; }
   .rosternow .none{ color:var(--muted); font-size:14px; }
   .rosternow .card2{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--tool-soft); }
   .rosternow .nm{ font-weight:700; font-size:14px; }
@@ -172,12 +172,10 @@
     <ul id="files"></ul>
 
     <div class="setblock" id="rosterBlock" style="margin-top:16px;">
-      <div class="setblock-title"><span class="dot"></span>プレミア選手表（プレミアのときだけ・毎回最新のものを入れる）</div>
+      <div class="setblock-title"><span class="dot"></span>プレミア選手表</div>
       <div id="rosterNow" class="rosternow"></div>
       <div id="rosterDrop">選手表（例「26_27EPL選手表」）をここにドラッグ＆ドロップ、またはクリックして選択
-        <input id="rosterFile" type="file" accept=".xlsx" hidden></div>
-      <div class="hint">選手表のタブは、合体ファイルの中で<b>必ずA3の印刷設定</b>にそろえます（A4などになっていたら自動でA3に直します）。入れ直すと前のものと差し替わります。</div>
-    </div>
+        <input id="rosterFile" type="file" accept=".xlsx" hidden></div>    </div>
   </div>
 
   <div class="card">
@@ -408,7 +406,7 @@ let roster=null;   // {name, size, bytes:ArrayBuffer}
 try{ indexedDB.deleteDatabase("kofa-excel-data-edit"); }catch(e){}
 function renderRoster(){
   const box=$("rosterNow"); box.innerHTML="";
-  if(!roster){ box.innerHTML='<span class="none">まだ入っていません（プレミア以外なら入れなくてOK）</span>'; return; }
+  if(!roster) return;
   const c=document.createElement("div"); c.className="card2";
   const nm=document.createElement("span"); nm.className="nm"; nm.textContent="📋 "+roster.name;
   const sub=document.createElement("span"); sub.className="sub2"; sub.textContent=Math.round(roster.size/1024)+" KB";
