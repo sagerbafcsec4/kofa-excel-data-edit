@@ -268,21 +268,25 @@
 <script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
 <script>
 const ADAPTER_PY = `
-import io, zipfile
+import io, zipfile, gc
 _OUTPUTS = {}
 _SUM_WB = None
-_BOOKS = {}
+_BOOKS = {}   # 名前 -> 元ファイルのバイト列。開いた冊子は抱えない(2026-11-17: 42冊を同時に開いてメモリ切れ)
 _ROSTERS = []
 def reset_outputs():
     global _SUM_WB
     _OUTPUTS.clear(); _SUM_WB = None; _BOOKS.clear(); del _ROSTERS[:]
+    gc.collect()
 def classify_one(name, data):
-    wb = openpyxl.load_workbook(io.BytesIO(bytes(data)))
+    raw = bytes(data)
+    wb = openpyxl.load_workbook(io.BytesIO(raw))
     k = classify_book(wb)
     if k == "roster":
         _ROSTERS.append(wb)
     elif k in ("official", "league"):
-        _BOOKS[name] = wb
+        _BOOKS[name] = raw   # 合体のときに開き直す
+    del wb
+    gc.collect()
     return k
 def is_roster_bytes(data):
     try:
@@ -302,21 +306,27 @@ def merge_one(off_name, lea_name, code, md_no, match_date=None, delete_weight=Fa
     STRIP_JOSHI = bool(strip_joshi)
     logs = []
     log = logs.append
-    off = _BOOKS.pop(off_name); lea = _BOOKS.pop(lea_name)
-    log("[公式戦] " + off_name); process_checked(off, log)
-    log("[リーグ戦] " + lea_name); process_checked(lea, log)
-    merge_team(off, lea, _ROSTERS, code, log)
-    out = merged_file_name(md_no, code, off)
-    bio = io.BytesIO(); off.save(bio)
-    _OUTPUTS[out] = bio.getvalue()
-    log("保存 -> " + out)
-    if make_hyoki_summary:
-        if _SUM_WB is None:
-            _SUM_WB = openpyxl.Workbook(); _SUM_WB.remove(_SUM_WB.active)
-        t = add_hyoki_to_summary(off, _SUM_WB, code)
-        if t:
-            log("  表記まとめに『" + t + "』を追加")
-    return out + "\\n" + "\\n".join(logs)
+    off = lea = None
+    try:
+        off = openpyxl.load_workbook(io.BytesIO(_BOOKS.pop(off_name)))
+        lea = openpyxl.load_workbook(io.BytesIO(_BOOKS.pop(lea_name)))
+        log("[公式戦] " + off_name); process_checked(off, log)
+        log("[リーグ戦] " + lea_name); process_checked(lea, log)
+        merge_team(off, lea, _ROSTERS, code, log)
+        out = merged_file_name(md_no, code, off)
+        bio = io.BytesIO(); off.save(bio)
+        _OUTPUTS[out] = bio.getvalue()
+        log("保存 -> " + out)
+        if make_hyoki_summary:
+            if _SUM_WB is None:
+                _SUM_WB = openpyxl.Workbook(); _SUM_WB.remove(_SUM_WB.active)
+            t = add_hyoki_to_summary(off, _SUM_WB, code)
+            if t:
+                log("  表記まとめに『" + t + "』を追加")
+        return out + "\\n" + "\\n".join(logs)
+    finally:
+        off = lea = None   # 1チーム分ずつ片付けて次へ
+        gc.collect()
 def process_one(name, data, delete_keireki, match_date=None, delete_weight=False, age_note=None, make_hyoki_summary=False, tab_code=None, color_new=False, new_summer=None, new_winter=None, strip_joshi=False):
     global DELETE_KEIREKI, MATCH_DATE, DELETE_WEIGHT, AGE_NOTE, _SUM_WB
     global COLOR_NEW, NEW_SUMMER, NEW_WINTER, STRIP_JOSHI
@@ -339,6 +349,8 @@ def process_one(name, data, delete_keireki, match_date=None, delete_weight=False
         t = add_hyoki_to_summary(wb, _SUM_WB, tab_code)
         if t:
             logs.append("  \u8868\u8a18\u307e\u3068\u3081\u306b\u300e" + t + "\u300f\u3092\u8ffd\u52a0")
+    del wb
+    gc.collect()
     return "\\n".join(logs)
 def finalize_hyoki_summary(name):
     if _SUM_WB is None or len(_SUM_WB.worksheets) == 0:
