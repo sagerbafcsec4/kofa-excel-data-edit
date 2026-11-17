@@ -618,18 +618,27 @@ def copy_ws_into(src, dst_wb, title):
     for idx, rd in src.row_dimensions.items():
         if rd.height is not None:
             dst.row_dimensions[idx].height = rd.height
+    # 書式の写しは「写し元の書式番号の組 -> 写し先の書式番号の組」を覚えて使い回す(2026-11-18)。
+    # 同じ書式を1マスごとに作り直すと合体の時間のほぼ全部を食うため。結果は1マスずつ写すのと同じ。
+    style_memo = {}
     for row in src.iter_rows():
         for cell in row:
             if cell.value is None and not cell.has_style:
                 continue
             nc = dst.cell(row=cell.row, column=cell.column, value=cell.value)
             if cell.has_style:
-                nc.font = copy(cell.font)
-                nc.fill = copy(cell.fill)
-                nc.border = copy(cell.border)
-                nc.alignment = copy(cell.alignment)
-                nc.number_format = cell.number_format
-                nc.protection = copy(cell.protection)
+                key = tuple(cell._style)
+                sa = style_memo.get(key)
+                if sa is None:
+                    nc.font = copy(cell.font)
+                    nc.fill = copy(cell.fill)
+                    nc.border = copy(cell.border)
+                    nc.alignment = copy(cell.alignment)
+                    nc.number_format = cell.number_format
+                    nc.protection = copy(cell.protection)
+                    style_memo[key] = copy(nc._style)
+                else:
+                    nc._style = copy(sa)
             if cell.hyperlink is not None:
                 nc.hyperlink = copy(cell.hyperlink)
     for mc in list(src.merged_cells.ranges):
