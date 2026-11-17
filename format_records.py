@@ -1115,6 +1115,25 @@ def merged_file_name(label, code, wb):
     return f"{code}_合体.xlsx"
 
 
+PAPER_NAMES = {8: "A3", 9: "A4", 11: "A5", 1: "レター", 5: "リーガル"}
+
+
+def ensure_a3(ws, log):
+    """選手表のタブは必ずA3で印刷する(2026-11-17)。A3以外(A4・未設定など)ならA3に直す。値は変えない。"""
+    cur = ws.page_setup.paperSize
+    try:
+        cur = int(cur) if cur not in (None, "") else None
+    except (TypeError, ValueError):
+        cur = None
+    if cur == 8:
+        log(f"  印刷設定『{ws.title}』: A3 を確認")
+        return False
+    ws.page_setup.paperSize = 8
+    before = PAPER_NAMES.get(cur, "未設定" if cur is None else f"番号{cur}")
+    log(f"  印刷設定『{ws.title}』: {before} -> A3 に修正")
+    return True
+
+
 def merge_team(off, lea, roster_wbs, code, log):
     """加工済みの 公式戦wb(off) と リーグ戦wb(lea) を1冊にする。off を土台に書き換えて返す。
     roster_wbs: 選手表wbのリスト(空なら経歴シートを使う)。"""
@@ -1176,6 +1195,7 @@ def merge_team(off, lea, roster_wbs, code, log):
         tail.append(t)
         expect.append((t.title, _cell_map(r_ws)))
         log(f"  選手表のタブ『{r_ws.title}』を最後尾に差し込み")
+        ensure_a3(t, log)
     else:
         tail += o_keireki
         expect += [(w.title, _cell_map(w)) for w in o_keireki]
