@@ -289,6 +289,15 @@ def classify_one(name, data):
     del wb
     gc.collect()
     return k
+def stash_book(name, data):
+    # ファイル名で公式戦/リーグ戦と決めた冊子は、開かずにバイト列だけ預かる(2026-11-17)
+    _BOOKS[name] = bytes(data)
+_KIND_JA = {"official": "公式戦", "league": "リーグ戦", "roster": "選手表", "other": "記録以外"}
+def _check_kind(wb, name, want):
+    got = classify_book(wb)
+    if got != want:
+        raise ValueError("名前と中身が合いません: 『" + name + "』はファイル名では" + _KIND_JA[want]
+                         + "ですが、中身(表紙の大会名)は" + _KIND_JA.get(got, got) + "でした。ファイルを確かめてください")
 def is_roster_bytes(data):
     try:
         return classify_book(openpyxl.load_workbook(io.BytesIO(bytes(data)))) == "roster"
@@ -311,6 +320,8 @@ def merge_one(off_name, lea_name, code, md_no, match_date=None, delete_weight=Fa
     try:
         off = openpyxl.load_workbook(io.BytesIO(_BOOKS.pop(off_name)))
         lea = openpyxl.load_workbook(io.BytesIO(_BOOKS.pop(lea_name)))
+        _check_kind(off, off_name, "official")   # ファイル名で決めた種類を、開いた冊子の表紙で確かめる
+        _check_kind(lea, lea_name, "league")
         log("[公式戦] " + off_name); process_checked(off, log)
         log("[リーグ戦] " + lea_name); process_checked(lea, log)
         merge_team(off, lea, _ROSTERS, code, log)
@@ -508,6 +519,12 @@ $("sumHyoki").onchange=()=>{ $("sumHyokiOpts").style.display = $("sumHyoki").che
   apply(); sel.onchange=apply;
 })();
 
+// ファイル名での見分け: 「略号_」のあとに「プレミア」「リーガ」「リーグ」を含めばリーグ戦、それ以外の「略号_…」は公式戦
+function kindByName(n){
+  const base=n.replace(/\.xlsx$/i, ""), i=base.indexOf("_");
+  if(i<1) return "other";
+  return /プレミア|リーガ|リーグ/.test(base.slice(i+1)) ? "league" : "official";
+}
 function toU8(ret){ return (ret && ret.toJs) ? ret.toJs() : ret; }
 function procName(n){ return n.replace(/\.xlsx$/i, "") + "_processed.xlsx"; }
 function zipName(){ const d=new Date(), p=n=>String(n).padStart(2,"0");
@@ -549,11 +566,12 @@ runBtn.onclick=async()=>{
       else log("⚠ プレミア選手表欄の「"+roster.name+"」は選手表として読めなかったため使いません");
     }catch(e){ log("⚠ プレミア選手表欄の「"+roster.name+"」を読めませんでした: "+e); }
   }
+  // 種類はファイル名で決める（2026-11-17・中身を開かないので速い）。中身との食い違いは合体のときに表紙で確かめる
+  const stash=pyodide.globals.get("stash_book");
   for(const f of selected){
-    try{
-      kinds[f.name]=classify(f.name, new Uint8Array(await f.arrayBuffer()));
-    }catch(e){ kinds[f.name]="other"; }
+    kinds[f.name]=kindByName(f.name);
     if(kinds[f.name]==="official" || kinds[f.name]==="league"){
+      stash(f.name, new Uint8Array(await f.arrayBuffer()));
       const code=f.name.replace(/\.xlsx$/i, "").split("_")[0];
       (groups[code] = groups[code] || {official:[], league:[]})[kinds[f.name]].push(f);
     }
