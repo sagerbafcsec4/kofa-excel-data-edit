@@ -74,6 +74,7 @@
   ul.howto li{ margin:2px 0; }
   .dateinput{ font:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); accent-color:var(--p1); }
   .dateinput:disabled{ background:#f3f3f7; color:#a7adba; cursor:not-allowed; }
+  .dateinput.changed{ border-color:#e08a00; background:#fff6e5; font-weight:700; }
   .summary{ font-size:.98rem; font-weight:700; margin:2px 0 10px; }
   .summary.ok{ color:var(--ok); } .summary.warn{ color:var(--warn); }
   .dl{ display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 6px; }
@@ -200,11 +201,11 @@
           <input id="matchDate" type="date" class="dateinput" disabled style="margin-top:8px;">
         </div>
         <div class="sr" id="matchDateHint">表記の「歳」列に、その日時点の年齢を入れます。指定しなければ変えません。</div>
-        <div class="sr" id="perFileDateHint" style="display:none;">下のファイル一覧に、ファイルごとの日付欄が出ます。</div>
+        <div class="sr" id="perFileDateHint" style="display:none;">上の日付が基準日です。下のファイル一覧で、基準日と違う試合のファイルだけ日付を変えてください。</div>
       </div>
       <div class="srow">
         <div class="sl"><label class="chk"><input id="perFileDate" type="checkbox" disabled> ファイルごとに試合日を指定する</label></div>
-        <div class="sr">試合日の違うファイルが混ざるとき。</div>
+        <div class="sr">基準日と違う試合が混ざるとき。違うファイルだけ日付を変えれば、残りは基準日のままです。</div>
       </div>
       <div class="srow">
         <div class="sl"><input id="ageNote" type="text" class="dateinput" value="※年齢は試合当日のもの" disabled style="width:100%; max-width:360px;"></div>
@@ -401,8 +402,17 @@ function showFiles(){
       const di=document.createElement("input");
       di.type="date"; di.className="dateinput"; di.title="このファイルの試合日";
       di.style.padding="5px 8px"; di.style.fontSize="12.5px";
-      if(f.matchDate) di.value=f.matchDate;
-      di.oninput=()=>{ f.matchDate = di.value || null; };
+      // 基準日を最初から入れておき、違う日付にしたファイルだけ f.matchDate に控える（2026-11-17）
+      di.value = f.matchDate || $("matchDate").value;
+      di.classList.toggle("changed", !!f.matchDate);
+      di.oninput=()=>{
+        const base=$("matchDate").value;
+        f.matchDate = (di.value && di.value!==base) ? di.value : null;
+        di.classList.toggle("changed", !!f.matchDate);
+        di.title = f.matchDate ? "基準日と違う試合日" : "このファイルの試合日（基準日のまま）";
+      };
+      di.onchange=()=>{ if(!di.value) showFiles(); };   // 空にしたら基準日に戻す
+      di.title = f.matchDate ? "基準日と違う試合日" : "このファイルの試合日（基準日のまま）";
       meta.appendChild(di);
     }
     const kb=document.createElement("span"); kb.textContent=Math.round(f.size/1024)+" KB";
@@ -465,7 +475,7 @@ $("useDate").onchange=()=>{
   $("perFileDate").disabled=!on;
   if(!on) $("perFileDate").checked=false;
   const perFile=on && $("perFileDate").checked;
-  $("matchDate").disabled = !on || perFile;
+  $("matchDate").disabled = !on;
   $("ageNote").disabled=!on;
   $("matchDateHint").style.display = perFile ? "none" : "";
   $("perFileDateHint").style.display = perFile ? "" : "none";
@@ -473,11 +483,13 @@ $("useDate").onchange=()=>{
 };
 $("perFileDate").onchange=()=>{
   const perFile=$("useDate").checked && $("perFileDate").checked;
-  $("matchDate").disabled = !$("useDate").checked || perFile;
+  $("matchDate").disabled = !$("useDate").checked;
   $("matchDateHint").style.display = perFile ? "none" : "";
   $("perFileDateHint").style.display = perFile ? "" : "none";
   showFiles();
 };
+// 基準日を変えたら、日付を変えていないファイルも一緒に動く
+$("matchDate").addEventListener("input", ()=>{ if($("useDate").checked && $("perFileDate").checked) showFiles(); });
 function syncLabelMode(){ const c=$("labelCustom").checked; $("labelText").disabled=!c; $("mdNo").disabled=c; }
 $("labelLeague").onchange=syncLabelMode; $("labelCustom").onchange=syncLabelMode;
 $("sumHyoki").onchange=()=>{ $("sumHyokiOpts").style.display = $("sumHyoki").checked ? "" : "none"; };
@@ -517,7 +529,7 @@ runBtn.onclick=async()=>{
   const hyokiOnly = sumHyoki && $("sumModeOnly").checked;
   const useDate = $("useDate").checked;
   const perFileDate = useDate && $("perFileDate").checked;
-  const mdGlobal = (useDate && !perFileDate && $("matchDate").value) ? $("matchDate").value : null;
+  const mdGlobal = (useDate && $("matchDate").value) ? $("matchDate").value : null;   // 基準日（ファイルごとの指定が無いファイルに使う）
   const colorNew = $("colorNew").checked;
   const newSummer = colorNew ? ($("newSummer").value || null) : null;
   const newWinter = colorNew ? ($("newWinter").value || null) : null;
@@ -568,7 +580,7 @@ runBtn.onclick=async()=>{
   for(const p of pairs){
     log("\n===== 合体 "+p.code+"：公式戦="+p.off.name+" ／ リーグ戦="+p.lea.name+" =====");
     try{
-      const md = perFileDate ? (p.off.matchDate || p.lea.matchDate || null) : mdGlobal;
+      const md = perFileDate ? (p.off.matchDate || p.lea.matchDate || mdGlobal) : mdGlobal;
       const ret=String(mergeOne(p.off.name, p.lea.name, p.code, mdNo, md, delW, note, sumHyoki, colorNew, newSummer, newWinter, stripJoshi));
       const outName=ret.split("\n")[0];
       log(ret.split("\n").slice(1).join("\n"));
@@ -590,7 +602,7 @@ runBtn.onclick=async()=>{
       const buf=new Uint8Array(await f.arrayBuffer());
       const outName=procName(f.name);
       const tabCode = f.name.replace(/\.xlsx$/i, "").split("_")[0];
-      const md = perFileDate ? (f.matchDate || null) : mdGlobal;
+      const md = perFileDate ? (f.matchDate || mdGlobal) : mdGlobal;
       log(procOne(outName, buf, delK, md, delW, note, sumHyoki, tabCode, colorNew, newSummer, newWinter, stripJoshi));
       if(!hyokiOnly){
         $("dl").appendChild(download(outName, toU8(getOut(outName))));
