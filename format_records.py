@@ -1197,23 +1197,59 @@ def apply_roster_match_day(ws, log):
     return changed
 
 
+def _is_formation_only(w):
+    """配置図だけを拾う。種類の判定は process_wb と同じ優先順位(出場記録 > シーズン > 表記 > 経歴 > 配置図)。
+    出場記録は列が多く「配置図」の条件にも当たるため、先に除いてから拾う。"""
+    return not (is_appearance_sheet(w) or is_season_sheet(w) or is_hyoki_sheet(w)
+                or is_keireki_sheet(w)) and is_formation_sheet(w)
+
+
+def _league_formation_titles(wb):
+    """リーグ戦ファイルが無いとき用: 配置図の見出し『25/26 大会名 第N節』から、国内リーグの配置図のシート名を拾う。
+    欧州大会(CL過去 など)と、見出しにカップ・杯・フェーズ・グループを含むものは除く。"""
+    out = set()
+    for w in wb.worksheets:
+        if not _is_formation_only(w):
+            continue
+        m = re.match(r"[A-Za-z]+", w.title)
+        if m and m.group(0).upper() in EURO_CODES:
+            continue
+        heads = [c.value for c in w[2] if isinstance(c.value, str)]
+        if any(re.search(r"[\s　]第\s*\d+\s*節", h) and not re.search(r"カップ|杯|フェーズ|グループ", h)
+               for h in heads):
+            out.add(w.title)
+    return out
+
+
+def finish_team(off, roster_wbs, code, log):
+    """ファイルが1つだけのチームの仕上げ(2026-11-25)。合体と同じ並び・選手表の差し込みにする。
+    リーグ戦のシーズン記録・出場記録を差し込まず、表記も差し替えないところだけが合体と違う。"""
+    return merge_team(off, None, roster_wbs, code, log)
+
+
 def merge_team(off, lea, roster_wbs, code, log):
     """加工済みの 公式戦wb(off) と リーグ戦wb(lea) を1冊にする。off を土台に書き換えて返す。
+    lea が None なら合体せず、off だけを同じ形に仕上げる(finish_team)。
     roster_wbs: 選手表wbのリスト(空なら経歴シートを使う)。"""
-    comp = competition_name(lea)
-    pre = league_prefix(comp, log)
-    log(f"[合体] 大会『{comp}』 -> 頭に『{pre}』")
+    single = lea is None
+    if single:
+        log("[仕上げ] ファイルが1つだけのため、リーグ戦の記録は差し込まず、合体と同じ形に整える")
+    else:
+        comp = competition_name(lea)
+        pre = league_prefix(comp, log)
+        log(f"[合体] 大会『{comp}』 -> 頭に『{pre}』")
     o_season = _first_sheet(off, is_season_sheet)
     o_app = _first_sheet(off, is_appearance_sheet)
     o_hyoki = _first_sheet(off, is_hyoki_sheet)
-    l_season = _first_sheet(lea, is_season_sheet)
-    l_app = _first_sheet(lea, is_appearance_sheet)
-    l_hyoki = _first_sheet(lea, is_hyoki_sheet)
-    miss = [n for n, w in (("公式戦のシーズン記録", o_season), ("公式戦の出場記録", o_app),
-                           ("リーグ戦のシーズン記録", l_season), ("リーグ戦の出場記録", l_app),
-                           ("リーグ戦の表記", l_hyoki)) if w is None]
-    if miss:
-        raise ValueError("合体できません(見つからないシート): " + "、".join(miss))
+    if not single:
+        l_season = _first_sheet(lea, is_season_sheet)
+        l_app = _first_sheet(lea, is_appearance_sheet)
+        l_hyoki = _first_sheet(lea, is_hyoki_sheet)
+        miss = [n for n, w in (("公式戦のシーズン記録", o_season), ("公式戦の出場記録", o_app),
+                               ("リーグ戦のシーズン記録", l_season), ("リーグ戦の出場記録", l_app),
+                               ("リーグ戦の表記", l_hyoki)) if w is None]
+        if miss:
+            raise ValueError("合体できません(見つからないシート): " + "、".join(miss))
     # 照合用に「出力シート名 -> 写し元の値」を控える
     expect = []   # (出力シート名, 写し元の値)
     # 経歴: 選手表に該当タブがあればそれを使い経歴シートは消す。無ければ公式戦の経歴を残す
@@ -1223,31 +1259,31 @@ def merge_team(off, lea, roster_wbs, code, log):
         if r_ws is not None:
             break
     if roster_wbs and r_ws is None:
-        log(f"  ⚠ 選手表に『{code}』のタブが見つからないため、公式戦の経歴シートを使います")
+        log(f"  ⚠ 選手表に『{code}』のタブが見つからないため、{'元' if single else '公式戦'}の経歴シートを使います")
     o_keireki = [w for w in off.worksheets if is_keireki_sheet(w)]
     # ---- 土台(公式戦)のシートを仕分ける ----
-    # 種類の判定は process_wb と同じ優先順位(出場記録 > シーズン > 表記 > 経歴 > 配置図)。
-    # 出場記録は列が多く「配置図」の条件にも当たるため、先に除いてから配置図を拾う。
-    def _is_formation_only(w):
-        return not (is_appearance_sheet(w) or is_season_sheet(w) or is_hyoki_sheet(w)
-                    or is_keireki_sheet(w)) and is_formation_sheet(w)
     keep_formations = [w for w in off.worksheets if _is_formation_only(w)]
     others = [w for w in off.worksheets
               if w not in keep_formations and w not in (o_season, o_app, o_hyoki) and w not in o_keireki]
     # ---- リーグ戦のシートを写す ----
-    s_title = _clean_tab(pre + to_half_kana(l_season.title))
-    a_title = _clean_tab(pre + to_half_kana(l_app.title))
-    hy_title = o_hyoki.title if o_hyoki is not None else l_hyoki.title
-    if o_hyoki is not None:
-        off.remove(o_hyoki)
-    new_season = copy_ws_into(l_season, off, s_title)
-    new_app = copy_ws_into(l_app, off, a_title)
-    new_hyoki = copy_ws_into(l_hyoki, off, hy_title)
-    log(f"  リーグ戦『{l_season.title}』->『{new_season.title}』 / 『{l_app.title}』->『{new_app.title}』を差し込み")
-    log(f"  表記をリーグ戦のものに差し替え『{new_hyoki.title}』")
-    expect += [(new_season.title, _cell_map(l_season)), (new_app.title, _cell_map(l_app)),
-               (new_hyoki.title, _cell_map(l_hyoki))]
-    expect += [(w.title, _cell_map(w)) for w in [o_season, o_app] + keep_formations + others]
+    if single:
+        new_season = new_app = None
+        new_hyoki = o_hyoki
+        expect += [(w.title, _cell_map(w)) for w in (o_hyoki,) if w is not None]
+    else:
+        s_title = _clean_tab(pre + to_half_kana(l_season.title))
+        a_title = _clean_tab(pre + to_half_kana(l_app.title))
+        hy_title = o_hyoki.title if o_hyoki is not None else l_hyoki.title
+        if o_hyoki is not None:
+            off.remove(o_hyoki)
+        new_season = copy_ws_into(l_season, off, s_title)
+        new_app = copy_ws_into(l_app, off, a_title)
+        new_hyoki = copy_ws_into(l_hyoki, off, hy_title)
+        log(f"  リーグ戦『{l_season.title}』->『{new_season.title}』 / 『{l_app.title}』->『{new_app.title}』を差し込み")
+        log(f"  表記をリーグ戦のものに差し替え『{new_hyoki.title}』")
+        expect += [(new_season.title, _cell_map(l_season)), (new_app.title, _cell_map(l_app)),
+                   (new_hyoki.title, _cell_map(l_hyoki))]
+    expect += [(w.title, _cell_map(w)) for w in [o_season, o_app] + keep_formations + others if w is not None]
     # 経歴
     tail = []
     if r_ws is not None:
@@ -1274,13 +1310,20 @@ def merge_team(off, lea, roster_wbs, code, log):
         else:
             log("  ⚠ 経歴シートも選手表のタブも無いため、経歴なしで出力します")
     # ---- 過去の配置図の並べ替え(リーグ -> 欧州 -> 国内カップ) ----
-    league_titles = {w.title for w in lea.worksheets if _is_formation_only(w)}
+    if single:
+        league_titles = _league_formation_titles(off)
+    else:
+        league_titles = {w.title for w in lea.worksheets if _is_formation_only(w)}
     order = {}
-    keep_formations = sorted(keep_formations,
-                             key=lambda w: _formation_key(w.title, keep_formations.index(w), league_titles, order))
+    if single and keep_formations and not league_titles:
+        log("  ⚠ 国内リーグの配置図を見分けられなかったため、配置図の並びは元のまま")
+    else:
+        keep_formations = sorted(keep_formations,
+                                 key=lambda w: _formation_key(w.title, keep_formations.index(w), league_titles, order))
     if keep_formations:
         log("  配置図の並び: " + " / ".join(w.title for w in keep_formations))
-    final = [o_season, new_season, o_app, new_app] + keep_formations + [new_hyoki] + others + tail
+    final = [w for w in [o_season, new_season, o_app, new_app] + keep_formations + [new_hyoki] + others + tail
+             if w is not None]
     off._sheets = final
     for i, w in enumerate(off.worksheets):
         w.sheet_view.tabSelected = (i == 0)
@@ -1288,7 +1331,7 @@ def merge_team(off, lea, roster_wbs, code, log):
     # ---- 照合 ----
     verify_merge(off, expect, [w.title for w in final])
     note = f"（選手表の Age {len(ages)}件だけは試合当日の年齢）" if r_ws is not None and ages else ""
-    log(f"  ✔ 合体の照合に合格: {len(final)}シート・全セルの値が写し元と一致{note}")
+    log(f"  ✔ {'仕上げ' if single else '合体'}の照合に合格: {len(final)}シート・全セルの値が写し元と一致{note}")
     return off
 
 
@@ -1309,7 +1352,7 @@ def verify_merge(wb, expect, titles):
             diff = [k for k in set(got) | set(src) if got.get(k) != src.get(k)]
             probs.append(f"『{t}』の値が写し元と{len(diff)}か所違う(例 {sorted(diff)[:3]})")
     if probs:
-        raise ValueError("安全チェック失敗（合体で値の違いを検知したため中止）: " + " / ".join(probs))
+        raise ValueError("安全チェック失敗（合体・仕上げで値の違いを検知したため中止）: " + " / ".join(probs))
 
 
 def process(path, log):

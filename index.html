@@ -159,11 +159,12 @@
   <details class="howtobox">
     <summary><span class="qi">?</span>使い方（入れるもの・できあがり・経歴）<span class="arr">▶</span></summary>
     <ul class="howto">
-      <li><b>入れるもの</b>：同じチームの<b>公式戦</b>と<b>リーグ戦</b>のファイル（何チーム分でも一度に入れてOK）。プレミアは<b>選手表</b>（例「26_27EPL選手表」）を下の「プレミア選手表」欄に毎回入れる</li>
+      <li><b>入れるもの</b>：同じチームの<b>公式戦</b>と<b>リーグ戦</b>のファイル（何チーム分でも一度に入れてOK）。プレミアは<b>選手表</b>（例「26_27EPL選手表」）を下の「プレミア選手表」欄に毎回入れる。<b>ファイルが1つだけのチーム</b>（公式戦だけ・リーグ戦だけ）もそのまま入れてOK</li>
       <li><b>できあがり</b>：チームごとに1冊。公式戦を土台に、表記をリーグ戦のものに差し替え、リーグ戦の記録を「ﾌﾟﾚﾐｱｼｰｽﾞﾝ記録」「ﾌﾟﾚﾐｱ出場記録」のような名前で差し込む</li>
-      <li><b>経歴</b>：選手表を入れると、経歴シートの代わりに選手表の同じ略号のタブを最後に入れる。入れなければ公式戦の経歴シートを残す</li>
+      <li><b>経歴</b>：選手表を入れると、経歴シートの代わりに選手表の同じ略号のタブを最後に入れる。入れなければ経歴シートを残す</li>
+      <li><b>1つだけのとき</b>：リーグ戦の記録を差し込まないだけで、ファイル名・並び・選手表の差し込みは合体と同じ</li>
     </ul>
-    <div class="hint">組はファイル名の頭の略号（「BHA_」など）で作ります。公式戦かリーグ戦かもファイル名で見分けます（略号のあとに「プレミア」「リーガ」「リーグ」があればリーグ戦）。組にならないファイルは、1つずつ整えます（経歴シートは残します）。</div>
+    <div class="hint">組はファイル名の頭の略号（「BHA_」など）で作ります。公式戦かリーグ戦かもファイル名で見分けます（略号のあとに「プレミア」「リーガ」「リーグ」があればリーグ戦）。同じ略号のファイルが3つ以上あるときや、公式戦どうしなど組にできないときは、1つずつ整えるだけです（名前は「元の名前_processed」・経歴シートは残します）。</div>
   </details>
 
   <div class="card">
@@ -262,7 +263,7 @@
     <div id="zip"></div>
     <div id="dl" class="dl"></div>
     <details class="detail" id="detail"><summary>処理の詳細を表示</summary><div id="log"></div></details>
-    <details class="more safe"><summary>数字は書き換えず、ファイルは外へ送りません（詳しく）</summary><p>やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記・経歴シートの「歳」列と、合体で入れた選手表の「Age」列（監督の行まで）に、試合当日の年齢を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。新加入の色付けをONにしたときは、表記・経歴シートの該当行に<b>背景色を付けるだけ</b>です（値は変わりません）。また<b>常に</b>、全シートの中身とシート名から「女子」という文字だけを取り除きます（この変更は自動照合の対象外です）。<b>公式戦とリーグ戦を合体するとき</b>は、シートを写して並べ替え・名前を付け直すだけで、選手表の「Age」のほかに値は変えません（出力前に、合体後の全シートを写し元と1セルずつ照合し、違いがあれば中止）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</p></details>
+    <details class="more safe"><summary>数字は書き換えず、ファイルは外へ送りません（詳しく）</summary><p>やるのは行/列/シートの削除・列幅/フォント/縮小表示/印刷範囲の調整だけ。<b>試合日を指定したときのみ</b>、表記・経歴シートの「歳」列と、差し込んだ選手表の「Age」列（監督の行まで）に、試合当日の年齢を入れます。それ以外の<b>セルの値・数字は一切書き換えません</b>（出力前に全セルを自動照合し変更を検知したら中止。歳列は試合日を指定したときのみ照合対象外）。新加入の色付けをONにしたときは、表記・経歴シートの該当行に<b>背景色を付けるだけ</b>です（値は変わりません）。また<b>常に</b>、全シートの中身とシート名から「女子」という文字だけを取り除きます（この変更は自動照合の対象外です）。<b>公式戦とリーグ戦を合体するとき</b>は、シートを写して並べ替え・名前を付け直すだけで、選手表の「Age」のほかに値は変えません（出力前に、合体後の全シートを写し元と1セルずつ照合し、違いがあれば中止）。元ファイルは変更せず別ファイルをダウンロード。処理はすべてブラウザ内で完結し、ファイルは外部送信されません。</p></details>
   </div>
 </div>
 
@@ -303,6 +304,12 @@ def is_roster_bytes(data):
         return classify_book(openpyxl.load_workbook(io.BytesIO(bytes(data)))) == "roster"
     except Exception:
         return False
+def _unique_out(out, code):
+    # 別チームが同じ名前になったとき(男子と女子など)に上書きしない
+    base = out[:-5]; cand = out; n = 1
+    while cand in _OUTPUTS:
+        cand = base + "_" + code + ("" if n == 1 else str(n)) + ".xlsx"; n += 1
+    return cand
 def merge_one(off_name, lea_name, code, md_no, match_date=None, delete_weight=False, age_note=None, make_hyoki_summary=False, color_new=False, new_summer=None, new_winter=None, strip_joshi=False):
     global DELETE_KEIREKI, MATCH_DATE, DELETE_WEIGHT, AGE_NOTE, _SUM_WB
     global COLOR_NEW, NEW_SUMMER, NEW_WINTER, STRIP_JOSHI
@@ -319,13 +326,24 @@ def merge_one(off_name, lea_name, code, md_no, match_date=None, delete_weight=Fa
     off = lea = None
     try:
         off = openpyxl.load_workbook(io.BytesIO(_BOOKS.pop(off_name)))
-        lea = openpyxl.load_workbook(io.BytesIO(_BOOKS.pop(lea_name)))
-        _check_kind(off, off_name, "official")   # ファイル名で決めた種類を、開いた冊子の表紙で確かめる
-        _check_kind(lea, lea_name, "league")
-        log("[公式戦] " + off_name); process_checked(off, log)
-        log("[リーグ戦] " + lea_name); process_checked(lea, log)
-        merge_team(off, lea, _ROSTERS, code, log)
-        out = merged_file_name(md_no, code, off)
+        if lea_name:
+            lea = openpyxl.load_workbook(io.BytesIO(_BOOKS.pop(lea_name)))
+            _check_kind(off, off_name, "official")   # ファイル名で決めた種類を、開いた冊子の表紙で確かめる
+            _check_kind(lea, lea_name, "league")
+            log("[公式戦] " + off_name); process_checked(off, log)
+            log("[リーグ戦] " + lea_name); process_checked(lea, log)
+            merge_team(off, lea, _ROSTERS, code, log)
+            out = merged_file_name(md_no, code, off)
+        else:
+            # ファイルが1つだけのチーム(2026-11-25): 合体しないだけで、名前・並び・選手表は合体と同じ
+            kind = classify_book(off)
+            log("[" + _KIND_JA.get(kind, kind) + "だけ] " + off_name); process_checked(off, log)
+            if kind in ("official", "league"):
+                finish_team(off, _ROSTERS, code, log)
+                out = merged_file_name(md_no, code, off)
+            else:
+                out = off_name[:-5] + "_processed.xlsx"   # 記録のファイルではない
+        out = _unique_out(out, code)
         bio = io.BytesIO(); off.save(bio)
         _OUTPUTS[out] = bio.getvalue()
         log("保存 -> " + out)
@@ -577,17 +595,21 @@ runBtn.onclick=async()=>{
     }
   }
   const rosters=selected.filter(f=>kinds[f.name]==="roster");
-  const pairs=[], merged=new Set();
+  const pairs=[], merged=new Set();   // lea が無い組 = ファイルが1つだけのチーム
   for(const [code,g] of Object.entries(groups)){
     if(g.official.length===1 && g.league.length===1){
       pairs.push({code, off:g.official[0], lea:g.league[0]});
       merged.add(g.official[0].name); merged.add(g.league[0].name);
-    }else if(g.official.length+g.league.length>1){
+    }else if(g.official.length+g.league.length===1){
+      const f=g.official[0] || g.league[0];
+      pairs.push({code, off:f, lea:null});
+      merged.add(f.name);
+    }else{
       log("⚠ "+code+": 公式戦"+g.official.length+"件・リーグ戦"+g.league.length+"件のため合体せず、1つずつ整えます");
     }
   }
   const singles=selected.filter(f=>!merged.has(f.name) && kinds[f.name]!=="roster");
-  const total=pairs.length+singles.length;
+  const total=pairs.length+singles.length, nMerge=pairs.filter(p=>p.lea).length;
   const rosterNames=(savedRosterUsed ? [roster.name+"（プレミア選手表欄）"] : []).concat(rosters.map(f=>f.name));
   if(rosterNames.length) log("選手表: "+rosterNames.join("、"));
   // 名前の頭: リーグ戦は「MD+節番号」、カップ戦などは自由入力をそのまま使う
@@ -596,10 +618,11 @@ runBtn.onclick=async()=>{
     : ($("mdNo").value.trim() ? "MD" + $("mdNo").value.trim() : "");
   const mergeOne=pyodide.globals.get("merge_one");
   for(const p of pairs){
-    log("\n===== 合体 "+p.code+"：公式戦="+p.off.name+" ／ リーグ戦="+p.lea.name+" =====");
+    log(p.lea ? "\n===== 合体 "+p.code+"：公式戦="+p.off.name+" ／ リーグ戦="+p.lea.name+" ====="
+              : "\n===== "+p.code+"（1つだけ）："+p.off.name+" =====");
     try{
-      const md = perFileDate ? (p.off.matchDate || p.lea.matchDate || mdGlobal) : mdGlobal;
-      const ret=String(mergeOne(p.off.name, p.lea.name, p.code, mdNo, md, delW, note, sumHyoki, colorNew, newSummer, newWinter, stripJoshi));
+      const md = perFileDate ? (p.off.matchDate || (p.lea && p.lea.matchDate) || mdGlobal) : mdGlobal;
+      const ret=String(mergeOne(p.off.name, p.lea ? p.lea.name : "", p.code, mdNo, md, delW, note, sumHyoki, colorNew, newSummer, newWinter, stripJoshi));
       const outName=ret.split("\n")[0];
       log(ret.split("\n").slice(1).join("\n"));
       if(!hyokiOnly){
@@ -609,7 +632,7 @@ runBtn.onclick=async()=>{
       okCount++;
     }catch(e){
       const _m=String(e);
-      const lab="合体 "+p.code+"（"+p.off.name+" ＋ "+p.lea.name+"）";
+      const lab=p.lea ? "合体 "+p.code+"（"+p.off.name+" ＋ "+p.lea.name+"）" : p.off.name;
       if(_m.includes("安全チェック失敗")) blocked.push(lab); else errored.push(lab);
       log("!! エラー: "+lab+" / "+e);
     }
@@ -691,7 +714,7 @@ runBtn.onclick=async()=>{
   }
   if(okCount===total){
     summaryEl.textContent = "✔ " + okCount + "件すべて整形が完了しました"
-      + (pairs.length ? "（うち合体 " + pairs.length + "件）" : "") + "（セルの値は変更していません）";
+      + (nMerge ? "（うち合体 " + nMerge + "件）" : "") + "（セルの値は変更していません）";
     summaryEl.className="summary ok";
   }else{
     let msg = "⚠ " + okCount + "/" + total + "件 完了";
