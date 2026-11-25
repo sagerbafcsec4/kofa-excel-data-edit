@@ -532,15 +532,22 @@ def fmt_keireki(ws, log):
                 bdv = hy.cell(r, hbd).value
                 if nm not in (None, "") and bdv not in (None, ""):
                     name2bd[str(nm).strip()] = bdv
-            cnt = 0
+            _my, _mm, _md = [int(x) for x in MATCH_DATE.split("-")]
+            bday_fill = PatternFill(patternType="solid", fgColor=FILL_BDAY)
+            cnt = 0; cnt_bday = 0
             for r in range(3, mr + 1):
                 if is_empty(g(grid, r, kage)) or is_empty(g(grid, r, kf)):
                     continue
-                a = age_on(name2bd.get(str(g(grid, r, kf)).strip()), MATCH_DATE)
+                bd_v = name2bd.get(str(g(grid, r, kf)).strip())
+                a = age_on(bd_v, MATCH_DATE)
                 if a is not None:
                     ws.cell(r, kage).value = a
                     cnt += 1
-            log(f"  歳列({get_column_letter(kage)}) に 年齢(数値)を {cnt}件 設定")
+                # 試合日が誕生日(月日が一致)なら、表記と同じうすいピンクで 歳 を塗る
+                if bday_md(bd_v) == (_mm, _md):
+                    ws.cell(r, kage).fill = bday_fill
+                    cnt_bday += 1
+            log(f"  歳列({get_column_letter(kage)}) に 年齢(数値)を {cnt}件 設定 / 誕生日ハイライト {cnt_bday}件")
         else:
             log("  歳列: 表記/フルネーム/生年月日 列が特定できず年齢は未設定")
 
