@@ -1147,6 +1147,41 @@ def ensure_a3(ws, log):
     return True
 
 
+def mark_roster_birthdays(ws, log):
+    """選手表のタブ: 試合当日が誕生日の人の Age・生年月日 を、表記と同じうすいピンクで塗る(2026-11-25)。
+    対象は見出しの下〜A列に「監督」と出る最初の行まで(その下は退団者などの控えなので塗らない)。
+    A列が「永」(永久欠番)の行は塗らない。値は変えない。"""
+    if not MATCH_DATE:
+        return
+    _my, _mm, _md = [int(x) for x in MATCH_DATE.split("-")]
+    maxr, maxc = ws.max_row or 0, ws.max_column or 0
+    age_col = bd_col = None
+    for c in range(1, maxc + 1):
+        h = _cell(ws, 2, c)
+        if h in ("Age", "歳") and age_col is None: age_col = c
+        elif h == "生年月日" and bd_col is None: bd_col = c
+    if not (age_col and bd_col):
+        log(f"  ⚠ 選手表『{ws.title}』: Age/生年月日 の列が見つからず誕生日ハイライトを見送り")
+        return
+    end = next((r for r in range(3, maxr + 1) if "監督" in _cell(ws, r, 1)), None)
+    if end is None:
+        log(f"  ⚠ 選手表『{ws.title}』: 監督の行が見つからず誕生日ハイライトを見送り")
+        return
+    fill = PatternFill(patternType="solid", fgColor=FILL_BDAY)
+    n = 0
+    for r in range(3, end + 1):
+        if _cell(ws, r, 1) == "永":
+            continue
+        v = ws.cell(r, bd_col).value
+        # 選手表の生年月日は「日付」と「文字(82/03/26)」が混ざっている
+        md = (v.month, v.day) if hasattr(v, "month") else bday_md(v)
+        if md == (_mm, _md):
+            ws.cell(r, age_col).fill = copy(fill)
+            ws.cell(r, bd_col).fill = copy(fill)
+            n += 1
+    log(f"  選手表『{ws.title}』 誕生日ハイライト {n}件")
+
+
 def merge_team(off, lea, roster_wbs, code, log):
     """加工済みの 公式戦wb(off) と リーグ戦wb(lea) を1冊にする。off を土台に書き換えて返す。
     roster_wbs: 選手表wbのリスト(空なら経歴シートを使う)。"""
@@ -1209,6 +1244,7 @@ def merge_team(off, lea, roster_wbs, code, log):
         expect.append((t.title, _cell_map(r_ws)))
         log(f"  選手表のタブ『{r_ws.title}』を最後尾に差し込み")
         ensure_a3(t, log)
+        mark_roster_birthdays(t, log)
     else:
         tail += o_keireki
         expect += [(w.title, _cell_map(w)) for w in o_keireki]
