@@ -1147,12 +1147,15 @@ def ensure_a3(ws, log):
     return True
 
 
-def mark_roster_birthdays(ws, log):
-    """選手表のタブ: 試合当日が誕生日の人の Age・生年月日 を、表記と同じうすいピンクで塗る(2026-11-25)。
-    対象は見出しの下〜A列に「監督」と出る最初の行まで(その下は退団者などの控えなので塗らない)。
-    A列が「永」(永久欠番)の行は塗らない。値は変えない。"""
+def apply_roster_match_day(ws, log):
+    """選手表のタブを試合当日に合わせる(2026-11-25)。
+    (1) Age の式(開いた日の年齢)を、表記・経歴と同じく試合当日の年齢(数値)に置き換える
+    (2) 試合当日が誕生日の人の Age・生年月日 を、表記と同じうすいピンクで塗る
+    対象は見出しの下〜A列に「監督」と出る最初の行まで(その下は退団者などの控えなので触らない)。
+    A列が「永」(永久欠番)の行も触らない。書き換えたマス {(行, 列): 年齢} を返す(照合で使う)。"""
+    changed = {}
     if not MATCH_DATE:
-        return
+        return changed
     _my, _mm, _md = [int(x) for x in MATCH_DATE.split("-")]
     maxr, maxc = ws.max_row or 0, ws.max_column or 0
     age_col = bd_col = None
@@ -1161,25 +1164,37 @@ def mark_roster_birthdays(ws, log):
         if h in ("Age", "歳") and age_col is None: age_col = c
         elif h == "生年月日" and bd_col is None: bd_col = c
     if not (age_col and bd_col):
-        log(f"  ⚠ 選手表『{ws.title}』: Age/生年月日 の列が見つからず誕生日ハイライトを見送り")
-        return
+        log(f"  ⚠ 選手表『{ws.title}』: Age/生年月日 の列が見つからず、年齢の置き換えと誕生日ハイライトを見送り")
+        return changed
     end = next((r for r in range(3, maxr + 1) if "監督" in _cell(ws, r, 1)), None)
     if end is None:
-        log(f"  ⚠ 選手表『{ws.title}』: 監督の行が見つからず誕生日ハイライトを見送り")
-        return
+        log(f"  ⚠ 選手表『{ws.title}』: 監督の行が見つからず、年齢の置き換えと誕生日ハイライトを見送り")
+        return changed
     fill = PatternFill(patternType="solid", fgColor=FILL_BDAY)
     n = 0
+    unread = []
     for r in range(3, end + 1):
         if _cell(ws, r, 1) == "永":
             continue
         v = ws.cell(r, bd_col).value
+        if is_empty(v):
+            continue
         # 選手表の生年月日は「日付」と「文字(82/03/26)」が混ざっている
-        md = (v.month, v.day) if hasattr(v, "month") else bday_md(v)
-        if md == (_mm, _md):
+        bd = f"{v.year}/{v.month}/{v.day}" if hasattr(v, "month") else v
+        a = age_on(bd, MATCH_DATE)
+        if a is None:
+            unread.append(f"{get_column_letter(bd_col)}{r}")
+        elif not is_empty(ws.cell(r, age_col).value):
+            ws.cell(r, age_col).value = a
+            changed[(r, age_col)] = a
+        if bday_md(bd) == (_mm, _md):
             ws.cell(r, age_col).fill = copy(fill)
             ws.cell(r, bd_col).fill = copy(fill)
             n += 1
-    log(f"  選手表『{ws.title}』 誕生日ハイライト {n}件")
+    log(f"  選手表『{ws.title}』 Age({get_column_letter(age_col)}列) を {MATCH_DATE.replace('-', '/')} 時点の年齢(数値)に {len(changed)}件 置き換え / 誕生日ハイライト {n}件")
+    if unread:
+        log(f"  ⚠ 選手表『{ws.title}』: 生年月日を読めず年齢を置き換えていません -> " + "、".join(unread))
+    return changed
 
 
 def merge_team(off, lea, roster_wbs, code, log):
@@ -1241,10 +1256,16 @@ def merge_team(off, lea, roster_wbs, code, log):
             log(f"  経歴シート『{w.title}』-> 削除(選手表を使うため)")
         t = copy_ws_into(r_ws, off, _clean_tab(r_ws.title))
         tail.append(t)
-        expect.append((t.title, _cell_map(r_ws)))
+        src = _cell_map(r_ws)
         log(f"  選手表のタブ『{r_ws.title}』を最後尾に差し込み")
         ensure_a3(t, log)
-        mark_roster_birthdays(t, log)
+        ages = apply_roster_match_day(t, log)
+        # 照合の例外は「見出しが Age(歳) の列で、写し元にも値があったマス」だけ。ほかは1マスも違ってはいけない
+        for (r, c), a in ages.items():
+            if r < 3 or str(src.get((2, c), "")).strip() not in ("Age", "歳") or (r, c) not in src:
+                raise ValueError(f"安全チェック失敗（選手表『{t.title}』の Age 以外 {get_column_letter(c)}{r} を書き換えようとしたため中止）")
+            src[(r, c)] = a
+        expect.append((t.title, src))
     else:
         tail += o_keireki
         expect += [(w.title, _cell_map(w)) for w in o_keireki]
@@ -1266,7 +1287,8 @@ def merge_team(off, lea, roster_wbs, code, log):
     off.active = 0
     # ---- 照合 ----
     verify_merge(off, expect, [w.title for w in final])
-    log(f"  ✔ 合体の照合に合格: {len(final)}シート・全セルの値が写し元と一致")
+    note = f"（選手表の Age {len(ages)}件だけは試合当日の年齢）" if r_ws is not None and ages else ""
+    log(f"  ✔ 合体の照合に合格: {len(final)}シート・全セルの値が写し元と一致{note}")
     return off
 
 
